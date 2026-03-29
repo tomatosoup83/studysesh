@@ -26,6 +26,11 @@ body {
 [cmdk-item][data-selected="true"] {
   background: var(--color-surface-3) !important;
 }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
 [cmdk-group-heading] {
   font-size: 0.65rem;
   font-weight: 600;
