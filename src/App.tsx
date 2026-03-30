@@ -8,6 +8,7 @@ import { CommandPalette } from './components/command/CommandPalette'
 import { SessionSummaryModal } from './components/session/SessionSummaryModal'
 import { UserNameModal } from './components/session/UserNameModal'
 import { ScoreboardModal } from './components/scoreboard/ScoreboardModal'
+import { AddTaskModal } from './components/board/AddTaskModal'
 import { useResize } from './hooks/useResize'
 import { useTimer } from './hooks/useTimer'
 import { useIdleTimer } from './hooks/useIdleTimer'
@@ -49,6 +50,7 @@ export default function App() {
       <SessionSummaryModal />
       <UserNameModal />
       <ScoreboardModal />
+      <AddTaskModal />
     </div>
   )
 }

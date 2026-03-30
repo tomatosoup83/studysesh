@@ -1,6 +1,10 @@
 import { Brain, Keyboard } from 'lucide-react'
 import { ThemeToggle } from '../ui/ThemeToggle'
 import { useCommandStore } from '../../stores/commandStore'
+import quotesRaw from '../../../quotes.txt?raw'
+
+const quotes = quotesRaw.split('\n').map((q) => q.trim()).filter(Boolean)
+const randomQuote = quotes[Math.floor(Math.random() * quotes.length)] ?? ''
 
 export function Header() {
   const { openPalette } = useCommandStore()
@@ -10,11 +14,19 @@ export function Header() {
       className="flex items-center justify-between px-5 py-3 border-b flex-shrink-0"
       style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-card)' }}
     >
-      <div className="flex items-center gap-2">
-        <Brain size={20} style={{ color: 'var(--color-primary)' }} />
-        <span className="font-bold text-base tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
+      <div className="flex items-center gap-2 min-w-0">
+        <Brain size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+        <span className="font-bold text-base tracking-tight flex-shrink-0" style={{ color: 'var(--color-text-primary)' }}>
           StudySesh
         </span>
+        {randomQuote && (
+          <span
+            className="text-xs italic truncate hidden sm:block"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            {randomQuote}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <button

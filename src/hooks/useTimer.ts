@@ -1,7 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useTimerStore } from '../stores/timerStore'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useSessionStore } from '../stores/sessionStore'
 import { getNextMode } from '../lib/pomodoroLogic'
+import { playAlarm } from '../lib/alarm'
 
 export function useTimer() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -12,6 +14,8 @@ export function useTimer() {
 
     if (mode === 'pomodoro') {
       completePomodoro()
+      useSessionStore.getState().incrementPomodoro()
+      playAlarm()
       if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
         new Notification('Pomodoro complete! 🍅', { body: 'Time for a break.' })
       }
@@ -33,7 +37,7 @@ export function useTimer() {
     const unsub = useTimerStore.subscribe((state, prev) => {
       if (state.status === 'running' && prev.status !== 'running') {
         intervalRef.current = setInterval(() => {
-          const { secondsRemaining, tick, status } = useTimerStore.getState()
+          const { secondsRemaining, tick, status, mode } = useTimerStore.getState()
           if (status !== 'running') {
             clearInterval(intervalRef.current!)
             return
@@ -44,6 +48,9 @@ export function useTimer() {
             handleComplete()
           } else {
             tick()
+            if (mode === 'pomodoro' && useSessionStore.getState().isActive) {
+              useSessionStore.getState().addFocusTime(1)
+            }
           }
         }, 1000)
       } else if (state.status !== 'running' && prev.status === 'running') {

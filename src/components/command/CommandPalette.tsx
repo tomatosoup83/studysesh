@@ -2,11 +2,13 @@ import { useEffect } from 'react'
 import { Command } from 'cmdk'
 import { useCommandStore } from '../../stores/commandStore'
 import { useCommandActions } from '../../hooks/useCommandActions'
+import { useTaskModalStore } from '../../stores/taskModalStore'
 import { COMMAND_CATEGORIES } from '../../lib/commands'
 
 export function CommandPalette() {
   const { open, closePalette, recentCommandIds, addRecentCommand } = useCommandStore()
-  const commands = useCommandActions()
+  const { open: openTaskModal } = useTaskModalStore()
+  const commands = useCommandActions(openTaskModal)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
