@@ -302,7 +302,7 @@ export function SettingsModal({ open, onClose }: Props) {
             {section === 'timer' && (
               <div className="space-y-4">
                 {([
-                  { label: 'Focus', key: 'pomodoro' as const, min: 5 * 60, max: 60 * 60 },
+                  { label: 'Focus', key: 'pomodoro' as const, min: 5 * 60, max: 90 * 60 },
                   { label: 'Short Break', key: 'shortBreak' as const, min: 60, max: 30 * 60 },
                   { label: 'Long Break', key: 'longBreak' as const, min: 5 * 60, max: 45 * 60 },
                 ] as const).map(({ label, key, min, max }) => (
