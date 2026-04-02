@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { Upload, X, Trash2 } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { Slider } from '../ui/Slider'
-import { useSettingsStore, Theme } from '../../stores/settingsStore'
+import { useSettingsStore, Theme, CSS_VAR_KEYS, CssVarKey, THEME_PRESETS } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useTimerStore } from '../../stores/timerStore'
 import { ProfileModal } from '../auth/ProfileModal'
+import { playAlarm } from '../../lib/alarm'
 import { api } from '../../lib/api'
 import type { QuoteItem } from '../../types/api'
 
@@ -13,9 +15,27 @@ interface Props {
   onClose: () => void
 }
 
-type Section = 'account' | 'appearance' | 'timer' | 'privacy' | 'quotes'
+type Section = 'account' | 'appearance' | 'timer' | 'alarm' | 'privacy' | 'quotes'
 
-const THEMES: { value: Theme; label: string; primary: string; bg: string }[] = [
+const VAR_LABELS: { key: CssVarKey; label: string }[] = [
+  { key: '--color-bg', label: 'Background' },
+  { key: '--color-panel-bg', label: 'Panel bg' },
+  { key: '--color-surface', label: 'Surface' },
+  { key: '--color-surface-2', label: 'Surface 2' },
+  { key: '--color-surface-3', label: 'Surface 3' },
+  { key: '--color-border', label: 'Border' },
+  { key: '--color-text-primary', label: 'Text' },
+  { key: '--color-text-secondary', label: 'Text secondary' },
+  { key: '--color-text-muted', label: 'Text muted' },
+  { key: '--color-primary', label: 'Primary' },
+  { key: '--color-secondary', label: 'Secondary' },
+  { key: '--color-accent', label: 'Accent' },
+  { key: '--color-success', label: 'Success' },
+  { key: '--color-warning', label: 'Warning' },
+  { key: '--color-danger', label: 'Danger' },
+]
+
+const PRESET_THEMES: { value: Theme; label: string; primary: string; bg: string }[] = [
   { value: 'dark', label: 'Dark', primary: '#818cf8', bg: '#0f172a' },
   { value: 'light', label: 'Light', primary: '#6366f1', bg: '#ffffff' },
   { value: 'paper', label: 'Paper', primary: '#92400e', bg: '#fffbeb' },
@@ -24,14 +44,36 @@ const THEMES: { value: Theme; label: string; primary: string; bg: string }[] = [
   { value: 'sunset', label: 'Sunset', primary: '#fb923c', bg: '#140a02' },
 ]
 
+// Sanitise hex input — accept #rrggbb or rrggbb
+function sanitiseHex(v: string): string | null {
+  const s = v.replace('#', '').toLowerCase()
+  if (/^[0-9a-f]{6}$/.test(s)) return `#${s}`
+  return null
+}
+
 export function SettingsModal({ open, onClose }: Props) {
   const [section, setSection] = useState<Section>('account')
   const [showProfile, setShowProfile] = useState(false)
-  const { theme, setTheme, timerDurations, setTimerDuration, autoStartBreaks, setAutoStartBreaks,
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const { theme, setTheme, customThemeVars, setCustomThemeVar, resetCustomTheme,
+    timerDurations, setTimerDuration, autoStartBreaks, setAutoStartBreaks,
     longBreakInterval, setLongBreakInterval, notificationsEnabled, setNotificationsEnabled,
-    shareLastTask, setShareLastTask } = useSettingsStore()
+    shareLastTask, setShareLastTask,
+    alarmSoundName, alarmDurationSecs, setAlarmSound, setAlarmDuration } = useSettingsStore()
   const { user } = useAuthStore()
   const { reset } = useTimerStore()
+
+  // Local hex text state so we can type freely without losing focus
+  const [hexInputs, setHexInputs] = useState<Record<string, string>>(() =>
+    Object.fromEntries(CSS_VAR_KEYS.map((k) => [k, customThemeVars[k] ?? '#000000']))
+  )
+  // Keep hexInputs in sync when customThemeVars changes externally (e.g. reset)
+  useEffect(() => {
+    setHexInputs(Object.fromEntries(CSS_VAR_KEYS.map((k) => [k, customThemeVars[k] ?? '#000000'])))
+  }, [customThemeVars])
+
+  const [resetBase, setResetBase] = useState<Exclude<Theme, 'custom'>>('dark')
 
   const [quotes, setQuotes] = useState<QuoteItem[]>([])
   const [newQuote, setNewQuote] = useState('')
@@ -60,10 +102,46 @@ export function SettingsModal({ open, onClose }: Props) {
     }
   }
 
+  const handleDeleteQuote = async (id: number) => {
+    try {
+      await api.quotes.delete(id)
+      setQuotes((prev) => prev.filter((q) => q.id !== id))
+    } catch { /* ignore */ }
+  }
+
+  const handleAlarmFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setAlarmSound(ev.target?.result as string, file.name)
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const handleColorPicker = (key: CssVarKey, value: string) => {
+    setCustomThemeVar(key, value)
+    setHexInputs((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handleHexInput = (key: CssVarKey, raw: string) => {
+    setHexInputs((prev) => ({ ...prev, [key]: raw }))
+    const clean = sanitiseHex(raw)
+    if (clean) setCustomThemeVar(key, clean)
+  }
+
+  const handleSelectCustom = () => {
+    // Seed from current non-custom theme when first switching to custom
+    if (theme !== 'custom') {
+      resetCustomTheme(theme)
+    }
+    setTheme('custom')
+  }
+
   const sections: { key: Section; label: string }[] = [
     { key: 'account', label: 'Account' },
     { key: 'appearance', label: 'Appearance' },
     { key: 'timer', label: 'Timer' },
+    { key: 'alarm', label: 'Alarm' },
     { key: 'privacy', label: 'Privacy' },
     { key: 'quotes', label: 'Quotes' },
   ]
@@ -93,7 +171,7 @@ export function SettingsModal({ open, onClose }: Props) {
           <div className="w-px flex-shrink-0" style={{ background: 'var(--color-border)' }} />
 
           {/* Content */}
-          <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: 400 }}>
+          <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: 420 }}>
             {section === 'account' && (
               <div className="space-y-4">
                 {user ? (
@@ -127,10 +205,12 @@ export function SettingsModal({ open, onClose }: Props) {
             )}
 
             {section === 'appearance' && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <p className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Theme</p>
+
+                {/* Preset theme swatches */}
                 <div className="grid grid-cols-3 gap-2">
-                  {THEMES.map((t) => (
+                  {PRESET_THEMES.map((t) => (
                     <button
                       key={t.value}
                       onClick={() => setTheme(t.value)}
@@ -145,7 +225,77 @@ export function SettingsModal({ open, onClose }: Props) {
                       <span style={{ color: theme === t.value ? t.primary : '#888', fontSize: '0.65rem' }}>{t.label}</span>
                     </button>
                   ))}
+
+                  {/* Custom swatch */}
+                  <button
+                    onClick={handleSelectCustom}
+                    className="flex flex-col items-center gap-1 p-2 rounded-xl text-xs transition-all"
+                    style={{
+                      background: theme === 'custom' ? customThemeVars['--color-bg'] : '#1a1a2e',
+                      border: `2px solid ${theme === 'custom' ? customThemeVars['--color-primary'] : 'transparent'}`,
+                    }}
+                  >
+                    <div
+                      className="w-6 h-6 rounded-full"
+                      style={{ background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }}
+                    />
+                    <span style={{ color: theme === 'custom' ? customThemeVars['--color-primary'] : '#888', fontSize: '0.65rem' }}>Custom</span>
+                  </button>
                 </div>
+
+                {/* Custom color editor */}
+                {theme === 'custom' && (
+                  <div className="space-y-3 pt-2" style={{ borderTop: '1px solid var(--color-border)' }}>
+                    {/* Reset from preset */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Reset from:</span>
+                      <select
+                        value={resetBase}
+                        onChange={(e) => setResetBase(e.target.value as Exclude<Theme, 'custom'>)}
+                        className="text-xs px-2 py-1 rounded-lg outline-none"
+                        style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                      >
+                        {Object.keys(THEME_PRESETS).map((k) => (
+                          <option key={k} value={k}>{k.charAt(0).toUpperCase() + k.slice(1)}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => resetCustomTheme(resetBase)}
+                        className="text-xs px-2 py-1 rounded-lg"
+                        style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
+                      >
+                        Reset
+                      </button>
+                    </div>
+
+                    {/* Color rows */}
+                    <div className="space-y-1.5">
+                      {VAR_LABELS.map(({ key, label }) => (
+                        <div key={key} className="flex items-center gap-2">
+                          <span className="text-xs w-28 flex-shrink-0" style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
+                          <input
+                            type="color"
+                            value={customThemeVars[key] ?? '#000000'}
+                            onChange={(e) => handleColorPicker(key, e.target.value)}
+                            className="w-7 h-7 rounded cursor-pointer border-0 p-0"
+                            style={{ background: 'none' }}
+                          />
+                          <input
+                            type="text"
+                            value={hexInputs[key] ?? ''}
+                            onChange={(e) => handleHexInput(key, e.target.value)}
+                            maxLength={7}
+                            spellCheck={false}
+                            className="w-20 px-2 py-0.5 rounded text-xs outline-none font-mono"
+                            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                          />
+                          {/* Live preview swatch */}
+                          <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: customThemeVars[key] }} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -198,6 +348,64 @@ export function SettingsModal({ open, onClose }: Props) {
               </div>
             )}
 
+            {section === 'alarm' && (
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Alarm sound</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium"
+                      style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
+                    >
+                      <Upload size={12} />
+                      Upload sound
+                    </button>
+                    {alarmSoundName ? (
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs" style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-primary)' }}>
+                        <span className="truncate max-w-[140px]">{alarmSoundName}</span>
+                        <button onClick={() => setAlarmSound(null, null)} style={{ color: 'var(--color-text-muted)' }}>
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Default (alarm.mp3)</span>
+                    )}
+                    <input ref={fileRef} type="file" accept="audio/*" className="hidden" onChange={handleAlarmFile} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span style={{ color: 'var(--color-text-secondary)' }}>Play duration</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min={1} max={30}
+                        value={alarmDurationSecs}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10)
+                          if (!isNaN(v) && v >= 1 && v <= 30) setAlarmDuration(v)
+                        }}
+                        className="w-12 px-1.5 py-0.5 rounded text-xs text-center outline-none"
+                        style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                      />
+                      <span style={{ color: 'var(--color-text-muted)' }}>sec</span>
+                    </div>
+                  </div>
+                  <Slider value={alarmDurationSecs} onChange={setAlarmDuration} min={1} max={30} step={1} />
+                </div>
+                <button
+                  type="button"
+                  onClick={playAlarm}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium"
+                  style={{ background: 'var(--color-primary)', color: 'white' }}
+                >
+                  Preview alarm
+                </button>
+              </div>
+            )}
+
             {section === 'privacy' && (
               <div className="space-y-4">
                 <label className="flex items-start gap-3 cursor-pointer select-none">
@@ -242,15 +450,29 @@ export function SettingsModal({ open, onClose }: Props) {
                   </button>
                 </form>
                 {quoteError && <p className="text-xs" style={{ color: 'var(--color-error, #ef4444)' }}>{quoteError}</p>}
-                <div className="space-y-1 max-h-48 overflow-y-auto">
+                <div className="space-y-1 max-h-52 overflow-y-auto">
                   {quotes.map((q) => (
                     <div
                       key={q.id}
-                      className="px-3 py-2 rounded-lg text-xs"
+                      className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs group"
                       style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-secondary)' }}
                     >
-                      <p>{q.text}</p>
-                      {q.addedBy && <p className="mt-0.5" style={{ color: 'var(--color-text-muted)' }}>— {q.addedBy}</p>}
+                      <div className="flex-1 min-w-0">
+                        <p>{q.text}</p>
+                        {q.addedBy && <p className="mt-0.5" style={{ color: 'var(--color-text-muted)' }}>— {q.addedBy}</p>}
+                      </div>
+                      {user && (
+                        <button
+                          onClick={() => handleDeleteQuote(q.id)}
+                          title="Delete quote"
+                          className="flex-shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ color: 'var(--color-text-muted)' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-danger)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
                     </div>
                   ))}
                   {quotes.length === 0 && (

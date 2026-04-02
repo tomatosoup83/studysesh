@@ -19,6 +19,14 @@ app.get('/', (c) => {
   })
 })
 
+// DELETE /api/quotes/:id — requires auth
+app.delete('/:id', requireAuth, (c) => {
+  const id = parseInt(c.req.param('id'), 10)
+  if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400)
+  db.prepare('DELETE FROM quotes WHERE id = ?').run(id)
+  return c.json({ ok: true })
+})
+
 // POST /api/quotes — requires auth
 app.post('/', requireAuth, async (c) => {
   const userId = c.get('userId')

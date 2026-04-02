@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useSettingsStore } from './stores/settingsStore'
+import { useSettingsStore, CSS_VAR_KEYS } from './stores/settingsStore'
 import { useAuthStore } from './stores/authStore'
 import { useTaskStore } from './stores/taskStore'
 import { Header } from './components/header/Header'
@@ -20,7 +20,7 @@ import './styles/themes.css'
 import './styles/globals.css'
 
 export default function App() {
-  const { theme } = useSettingsStore()
+  const { theme, customThemeVars } = useSettingsStore()
   const { user, hydrateFromToken } = useAuthStore()
   const { syncFromServer } = useTaskStore()
   const { isHyperFocus } = useUIStore()
@@ -38,8 +38,15 @@ export default function App() {
   useNotifications()
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
+    const root = document.documentElement
+    CSS_VAR_KEYS.forEach((k) => root.style.removeProperty(k))
+    if (theme === 'custom') {
+      root.removeAttribute('data-theme')
+      Object.entries(customThemeVars).forEach(([k, v]) => root.style.setProperty(k, v))
+    } else {
+      root.setAttribute('data-theme', theme)
+    }
+  }, [theme, customThemeVars])
 
   // Validate stored token and sync tasks on mount
   useEffect(() => {

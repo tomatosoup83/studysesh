@@ -168,5 +168,8 @@ export const api = {
         body: JSON.stringify({ text }),
       })
     },
+    delete(id: number): Promise<void> {
+      return request<void>(`/api/quotes/${id}`, { method: 'DELETE' })
+    },
   },
 }
