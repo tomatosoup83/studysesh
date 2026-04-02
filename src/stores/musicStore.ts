@@ -8,6 +8,9 @@ const LOFI_PLAYLIST: YouTubeTrack[] = [
   { id: 'l3', title: 'Lofi Study Beats', videoId: 'lTRiuFIWV54' },
   { id: 'l4', title: 'Jazz Lofi Hip Hop', videoId: 'DSGyEsJ17cI' },
   { id: 'l5', title: 'Deep Focus Music', videoId: 'OeELwSyFuj8' },
+  { id: 'l6', title: 'Cozy Coffee Shop Beats', videoId: 'aLqc8TUwpD4' },
+  { id: 'l7', title: 'Late Night Study Lofi', videoId: 'bTNSBoG6Nvs' },
+  { id: 'l8', title: 'Lofi Chill Beats', videoId: 'n61ULEU7CO0' },
 ]
 
 const AMBIENT_PLAYLIST: YouTubeTrack[] = [
@@ -17,6 +20,8 @@ const AMBIENT_PLAYLIST: YouTubeTrack[] = [
   { id: 'a4', title: 'Ocean Waves', videoId: 'V1bFr2SWP1I' },
   { id: 'a5', title: 'White Noise', videoId: 'nMfPqeZjc2c' },
   { id: 'a6', title: 'Fireplace', videoId: 'L_LUpnjgPso' },
+  { id: 'a7', title: 'Thunderstorm', videoId: 'nDq6TstdEi8' },
+  { id: 'a8', title: 'Library Ambience', videoId: 'mPZkdNFkNps' },
 ]
 
 interface MusicStore {

@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware'
 import { nanoid } from 'nanoid'
 import { arrayMove } from '@dnd-kit/sortable'
 import { Task, TaskId, ColumnId, Subject, Priority, Subtask } from '../types/task'
+import { api } from '../lib/api'
+import { useSessionStore } from './sessionStore'
 
 interface TaskStore {
   tasks: Record<TaskId, Task>
@@ -26,6 +28,7 @@ interface TaskStore {
   addSubject: (name: string, color: string) => string
   deleteSubject: (id: string) => void
   incrementTaskPomodoro: (taskId: TaskId) => void
+  syncFromServer: () => Promise<void>
 }
 
 const DEFAULT_SUBJECTS: Subject[] = [
@@ -37,11 +40,47 @@ const DEFAULT_SUBJECTS: Subject[] = [
 
 export const useTaskStore = create<TaskStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       tasks: {},
       taskOrder: { 'not-started': [], 'in-progress': [], completed: [] },
-      columns: ['not-started', 'in-progress', 'completed'],
+      columns: ['not-started', 'in-progress', 'completed'] as ColumnId[],
       subjects: DEFAULT_SUBJECTS,
+
+      syncFromServer: async () => {
+        try {
+          const { tasks: serverTasks, subjects: serverSubjects } = await api.tasks.getAll()
+          const tasks: Record<TaskId, Task> = {}
+          const taskOrder: Record<ColumnId, TaskId[]> = { 'not-started': [], 'in-progress': [], completed: [] }
+
+          // Sort by sort_order then createdAt to preserve order
+          const sorted = [...serverTasks].sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt - b.createdAt)
+          for (const t of sorted) {
+            const colId = t.columnId as ColumnId
+            tasks[t.id] = {
+              id: t.id,
+              title: t.title,
+              description: t.description ?? undefined,
+              columnId: colId,
+              priority: t.priority as Priority,
+              subjectId: t.subjectId ?? undefined,
+              subtasks: t.subtasks as Subtask[],
+              estimatedPomodoros: t.estimatedPomodoros ?? undefined,
+              actualPomodoros: t.actualPomodoros,
+              createdAt: t.createdAt,
+              completedAt: t.completedAt ?? undefined,
+            }
+            if (taskOrder[colId]) taskOrder[colId].push(t.id)
+          }
+
+          const subjects: Subject[] = serverSubjects.length > 0
+            ? serverSubjects
+            : DEFAULT_SUBJECTS
+
+          set({ tasks, taskOrder, subjects })
+        } catch {
+          // Server sync failed, keep local state
+        }
+      },
 
       addTask: (title, opts = {}) => {
         const id = nanoid()
@@ -55,16 +94,42 @@ export const useTaskStore = create<TaskStore>()(
           tasks: { ...s.tasks, [id]: task },
           taskOrder: { ...s.taskOrder, [columnId]: [...s.taskOrder[columnId], id] },
         }))
+        // Sync to server
+        api.tasks.create({
+          id,
+          title,
+          description,
+          columnId,
+          priority,
+          subjectId,
+          subtasks: [],
+          estimatedPomodoros,
+          actualPomodoros: 0,
+          createdAt: task.createdAt,
+          sortOrder: get().taskOrder[columnId].length,
+        }).catch(() => {
+          // Rollback on failure
+          set((s) => {
+            const { [id]: _removed, ...rest } = s.tasks
+            return {
+              tasks: rest,
+              taskOrder: { ...s.taskOrder, [columnId]: s.taskOrder[columnId].filter(tid => tid !== id) },
+            }
+          })
+        })
         return id
       },
 
-      updateTask: (id, updates) =>
-        set((s) => ({ tasks: { ...s.tasks, [id]: { ...s.tasks[id], ...updates } } })),
+      updateTask: (id, updates) => {
+        set((s) => ({ tasks: { ...s.tasks, [id]: { ...s.tasks[id], ...updates } } }))
+        const { subtasks, ...rest } = updates as Task
+        api.tasks.update(id, { ...rest, ...(subtasks !== undefined ? { subtasks } : {}) }).catch(() => {})
+      },
 
-      deleteTask: (id) =>
+      deleteTask: (id) => {
+        const task = get().tasks[id]
+        if (!task) return
         set((s) => {
-          const task = s.tasks[id]
-          if (!task) return s
           const { [id]: _removed, ...rest } = s.tasks
           return {
             tasks: rest,
@@ -73,13 +138,24 @@ export const useTaskStore = create<TaskStore>()(
               [task.columnId]: s.taskOrder[task.columnId].filter((tid) => tid !== id),
             },
           }
-        }),
+        })
+        api.tasks.delete(id).catch(() => {
+          // Rollback on failure
+          set((s) => ({
+            tasks: { ...s.tasks, [id]: task },
+            taskOrder: { ...s.taskOrder, [task.columnId]: [...s.taskOrder[task.columnId], id] },
+          }))
+        })
+      },
 
-      moveTask: (id, toColumn, toIndex) =>
+      moveTask: (id, toColumn, toIndex) => {
+        const task = get().tasks[id]
+        if (!task) return
+        const fromColumn = task.columnId
+        const wasCompleted = fromColumn === 'completed'
+        const completedAt = toColumn === 'completed' ? Date.now() : task.completedAt
+
         set((s) => {
-          const task = s.tasks[id]
-          if (!task) return s
-          const fromColumn = task.columnId
           const fromOrder = s.taskOrder[fromColumn].filter((tid) => tid !== id)
           const toOrder = [...s.taskOrder[toColumn].filter((tid) => tid !== id)]
           const insertAt = toIndex !== undefined ? toIndex : toOrder.length
@@ -87,76 +163,81 @@ export const useTaskStore = create<TaskStore>()(
           return {
             tasks: {
               ...s.tasks,
-              [id]: {
-                ...task,
-                columnId: toColumn,
-                completedAt: toColumn === 'completed' ? Date.now() : task.completedAt,
-              },
+              [id]: { ...task, columnId: toColumn, completedAt },
             },
             taskOrder: { ...s.taskOrder, [fromColumn]: fromOrder, [toColumn]: toOrder },
           }
-        }),
+        })
 
-      reorderTask: (columnId, fromIndex, toIndex) =>
+        // Notify session tracker when task is moved to completed
+        if (toColumn === 'completed' && !wasCompleted) {
+          const { isActive, addCompletedTask } = useSessionStore.getState()
+          if (isActive) addCompletedTask(id)
+        }
+
+        api.tasks.update(id, {
+          columnId: toColumn,
+          completedAt: completedAt ?? undefined,
+        }).catch(() => {})
+      },
+
+      reorderTask: (columnId, fromIndex, toIndex) => {
         set((s) => ({
           taskOrder: {
             ...s.taskOrder,
             [columnId]: arrayMove(s.taskOrder[columnId], fromIndex, toIndex),
           },
-        })),
+        }))
+        const newOrder = get().taskOrder[columnId]
+        api.tasks.updateOrder(newOrder).catch(() => {})
+      },
 
-      addSubtask: (taskId, title) =>
-        set((s) => {
-          const task = s.tasks[taskId]
-          if (!task) return s
-          const subtask: Subtask = { id: nanoid(), title, completed: false }
-          return { tasks: { ...s.tasks, [taskId]: { ...task, subtasks: [...task.subtasks, subtask] } } }
-        }),
+      addSubtask: (taskId, title) => {
+        const task = get().tasks[taskId]
+        if (!task) return
+        const subtask: Subtask = { id: nanoid(), title, completed: false }
+        const newSubtasks = [...task.subtasks, subtask]
+        set((s) => ({ tasks: { ...s.tasks, [taskId]: { ...task, subtasks: newSubtasks } } }))
+        api.tasks.update(taskId, { subtasks: newSubtasks }).catch(() => {})
+      },
 
-      toggleSubtask: (taskId, subtaskId) =>
-        set((s) => {
-          const task = s.tasks[taskId]
-          if (!task) return s
-          return {
-            tasks: {
-              ...s.tasks,
-              [taskId]: {
-                ...task,
-                subtasks: task.subtasks.map((st) =>
-                  st.id === subtaskId ? { ...st, completed: !st.completed } : st
-                ),
-              },
-            },
-          }
-        }),
+      toggleSubtask: (taskId, subtaskId) => {
+        const task = get().tasks[taskId]
+        if (!task) return
+        const newSubtasks = task.subtasks.map((st) =>
+          st.id === subtaskId ? { ...st, completed: !st.completed } : st
+        )
+        set((s) => ({ tasks: { ...s.tasks, [taskId]: { ...task, subtasks: newSubtasks } } }))
+        api.tasks.update(taskId, { subtasks: newSubtasks }).catch(() => {})
+      },
 
-      deleteSubtask: (taskId, subtaskId) =>
-        set((s) => {
-          const task = s.tasks[taskId]
-          if (!task) return s
-          return {
-            tasks: {
-              ...s.tasks,
-              [taskId]: { ...task, subtasks: task.subtasks.filter((st) => st.id !== subtaskId) },
-            },
-          }
-        }),
+      deleteSubtask: (taskId, subtaskId) => {
+        const task = get().tasks[taskId]
+        if (!task) return
+        const newSubtasks = task.subtasks.filter((st) => st.id !== subtaskId)
+        set((s) => ({ tasks: { ...s.tasks, [taskId]: { ...task, subtasks: newSubtasks } } }))
+        api.tasks.update(taskId, { subtasks: newSubtasks }).catch(() => {})
+      },
 
       addSubject: (name, color) => {
         const id = nanoid()
         set((s) => ({ subjects: [...s.subjects, { id, name, color }] }))
+        api.tasks.createSubject(id, name, color).catch(() => {})
         return id
       },
 
-      deleteSubject: (id) =>
-        set((s) => ({ subjects: s.subjects.filter((sub) => sub.id !== id) })),
+      deleteSubject: (id) => {
+        set((s) => ({ subjects: s.subjects.filter((sub) => sub.id !== id) }))
+        api.tasks.deleteSubject(id).catch(() => {})
+      },
 
-      incrementTaskPomodoro: (taskId) =>
-        set((s) => {
-          const task = s.tasks[taskId]
-          if (!task) return s
-          return { tasks: { ...s.tasks, [taskId]: { ...task, actualPomodoros: task.actualPomodoros + 1 } } }
-        }),
+      incrementTaskPomodoro: (taskId) => {
+        const task = get().tasks[taskId]
+        if (!task) return
+        const newCount = task.actualPomodoros + 1
+        set((s) => ({ tasks: { ...s.tasks, [taskId]: { ...task, actualPomodoros: newCount } } }))
+        api.tasks.update(taskId, { actualPomodoros: newCount }).catch(() => {})
+      },
     }),
     { name: 'studysesh-tasks' }
   )

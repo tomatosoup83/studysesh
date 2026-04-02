@@ -7,7 +7,7 @@ app.post('/', async (c) => {
   const body = await c.req.json().catch(() => null)
   if (!body) return c.json({ error: 'Invalid JSON' }, 400)
 
-  const { userName, startedAt, endedAt, focusSecs, idleSecs, pomodoros, tasksDone, notes } = body
+  const { userName, startedAt, endedAt, focusSecs, idleSecs, pomodoros, tasksDone, notes, lastTaskName, shareLastTask } = body
 
   if (!userName || typeof userName !== 'string' || userName.trim() === '') {
     return c.json({ error: 'userName is required' }, 400)
@@ -19,8 +19,8 @@ app.post('/', async (c) => {
   const date = new Date(endedAt).toISOString().slice(0, 10)
 
   const stmt = db.prepare(`
-    INSERT INTO sessions (user_name, date, started_at, ended_at, focus_secs, idle_secs, pomodoros, tasks_done, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sessions (user_name, date, started_at, ended_at, focus_secs, idle_secs, pomodoros, tasks_done, notes, last_task_name, share_last_task)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   const result = stmt.run(
@@ -32,7 +32,9 @@ app.post('/', async (c) => {
     idleSecs ?? 0,
     pomodoros ?? 0,
     tasksDone ?? 0,
-    notes ?? null
+    notes ?? null,
+    lastTaskName ?? null,
+    shareLastTask === false ? 0 : 1
   )
 
   return c.json({ id: result.lastInsertRowid, date }, 201)

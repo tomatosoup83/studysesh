@@ -37,7 +37,7 @@ export function PomodoroTimer() {
         <TimerSettings />
       </div>
 
-      <TimerDisplay secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} mode={mode} />
+      <TimerDisplay secondsRemaining={secondsRemaining} totalSeconds={totalSeconds} mode={mode} isRunning={status === 'running'} />
 
       <TimerControls status={status} />
 

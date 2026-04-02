@@ -1,16 +1,18 @@
 import { useMemo } from 'react'
-import { Play, Pause, Timer, SkipForward, Music, Sun, Moon, BookOpen, Plus } from 'lucide-react'
+import { Play, Pause, Timer, SkipForward, Music, Sun, Moon, BookOpen, Plus, Zap } from 'lucide-react'
 import { CommandDefinition, COMMAND_CATEGORIES } from '../lib/commands'
 import { useTimerStore } from '../stores/timerStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useMusicStore } from '../stores/musicStore'
 import { useCommandStore } from '../stores/commandStore'
+import { useUIStore } from '../stores/uiStore'
 
 export function useCommandActions(onAddTask?: () => void): CommandDefinition[] {
   const timer = useTimerStore()
   const settings = useSettingsStore()
   const music = useMusicStore()
   const cmd = useCommandStore()
+  const ui = useUIStore()
 
   return useMemo<CommandDefinition[]>(() => [
     {
@@ -73,6 +75,14 @@ export function useCommandActions(onAddTask?: () => void): CommandDefinition[] {
       action: () => { music.nextTrack(); cmd.closePalette() },
     },
     {
+      id: 'ui-hyperfocus',
+      label: ui.isHyperFocus ? 'Exit Hyper Focus' : 'Hyper Focus Mode',
+      category: COMMAND_CATEGORIES.SETTINGS,
+      icon: Zap,
+      keywords: ['focus', 'zen', 'distraction', 'hide'],
+      action: () => { ui.toggleHyperFocus(); cmd.closePalette() },
+    },
+    {
       id: 'theme-dark',
       label: 'Dark Theme',
       category: COMMAND_CATEGORIES.SETTINGS,
@@ -94,5 +104,5 @@ export function useCommandActions(onAddTask?: () => void): CommandDefinition[] {
       action: () => { settings.setTheme('paper'); cmd.closePalette() },
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  ], [timer.status, music.lofi.isPlaying])
+  ], [timer.status, music.lofi.isPlaying, ui.isHyperFocus])
 }

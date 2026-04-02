@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Play, Square, Clock, Coffee, Target, CheckSquare, Trophy } from 'lucide-react'
+import { Play, Square, Clock, Coffee, Target, CheckSquare, Trophy, ChevronUp } from 'lucide-react'
 import { useSessionStore } from '../../stores/sessionStore'
 import { useTimerStore } from '../../stores/timerStore'
 import { useScoreboardStore } from '../../stores/scoreboardStore'
-import { useUserStore } from '../../stores/userStore'
+import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../lib/api'
 import { formatDuration, intervalToDuration } from 'date-fns'
 
@@ -13,14 +13,15 @@ function fmtTime(seconds: number): string {
   return formatDuration(dur, { format: ['hours', 'minutes'] }) || '0 min'
 }
 
-export function SessionTracker() {
+export function SessionTracker({ onToggleHide }: { onToggleHide?: () => void }) {
   const {
     isActive, startSession, endSession,
     totalFocusSeconds, idleSeconds, pomodorosCompleted, tasksCompletedIds,
   } = useSessionStore()
   const { status } = useTimerStore()
   const { openScoreboard } = useScoreboardStore()
-  const { userName } = useUserStore()
+  const { user } = useAuthStore()
+  const userName = user?.displayName ?? null
 
   const [goalMins, setGoalMins] = useState<number | null>(null)
   const [goalInput, setGoalInput] = useState('')
@@ -83,6 +84,18 @@ export function SessionTracker() {
         </div>
 
         <div className="flex items-center gap-1">
+          {onToggleHide && (
+            <button
+              onClick={onToggleHide}
+              title="Collapse session panel"
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ color: 'var(--color-text-muted)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-primary)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+            >
+              <ChevronUp size={14} />
+            </button>
+          )}
           <button
             onClick={openScoreboard}
             title="Scoreboard"

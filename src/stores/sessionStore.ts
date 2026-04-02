@@ -2,7 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { SessionSummary } from '../types/session'
 import { api } from '../lib/api'
-import { useUserStore } from './userStore'
+import { useAuthStore } from './authStore'
+import { useTaskStore } from './taskStore'
+import { useSettingsStore } from './settingsStore'
 
 interface SessionStore {
   startedAt: number | null
@@ -57,8 +59,14 @@ export const useSessionStore = create<SessionStore>()(
         }
         set({ isActive: false, startedAt: null, summary })
 
-        const userName = useUserStore.getState().userName
+        const user = useAuthStore.getState().user
+        const userName = user?.displayName ?? null
         if (userName) {
+          const tasks = useTaskStore.getState().tasks
+          const lastTaskId = s.tasksCompletedIds[s.tasksCompletedIds.length - 1]
+          const lastTaskName = lastTaskId ? (tasks[lastTaskId]?.title ?? null) : null
+          const shareLastTask = useSettingsStore.getState().shareLastTask ?? true
+
           api.postSession({
             userName,
             startedAt,
@@ -67,6 +75,8 @@ export const useSessionStore = create<SessionStore>()(
             idleSecs: s.idleSeconds,
             pomodoros: s.pomodorosCompleted,
             tasksDone: s.tasksCompletedIds.length,
+            lastTaskName,
+            shareLastTask,
           }).catch(() => {
             // fire-and-forget; don't block UI on network errors
           })

@@ -1,13 +1,31 @@
-import { Brain, Keyboard } from 'lucide-react'
-import { ThemeToggle } from '../ui/ThemeToggle'
+import { useState, useEffect } from 'react'
+import { Brain, Keyboard, Zap, Settings, LogOut } from 'lucide-react'
 import { useCommandStore } from '../../stores/commandStore'
-import quotesRaw from '../../../quotes.txt?raw'
-
-const quotes = quotesRaw.split('\n').map((q) => q.trim()).filter(Boolean)
-const randomQuote = quotes[Math.floor(Math.random() * quotes.length)] ?? ''
+import { useAuthStore } from '../../stores/authStore'
+import { useUIStore } from '../../stores/uiStore'
+import { ProfileModal } from '../auth/ProfileModal'
+import { SettingsModal } from '../settings/SettingsModal'
+import { api } from '../../lib/api'
 
 export function Header() {
   const { openPalette } = useCommandStore()
+  const { user, logout } = useAuthStore()
+  const { isHyperFocus, toggleHyperFocus } = useUIStore()
+  const [showProfile, setShowProfile] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [quote, setQuote] = useState('')
+
+  // Fetch random quote from server
+  useEffect(() => {
+    api.quotes.getAll().then((res) => {
+      if (res.quotes.length > 0) {
+        const q = res.quotes[Math.floor(Math.random() * res.quotes.length)]
+        setQuote(q.text)
+      }
+    }).catch(() => {})
+  }, [])
+
+  const initials = user?.displayName?.slice(0, 2).toUpperCase() ?? '??'
 
   return (
     <header
@@ -19,16 +37,30 @@ export function Header() {
         <span className="font-bold text-base tracking-tight flex-shrink-0" style={{ color: 'var(--color-text-primary)' }}>
           StudySesh
         </span>
-        {randomQuote && (
+        {quote && (
           <span
             className="text-xs italic truncate hidden sm:block"
             style={{ color: 'var(--color-text-muted)' }}
           >
-            {randomQuote}
+            {quote}
           </span>
         )}
       </div>
       <div className="flex items-center gap-2">
+        {/* Hyper focus toggle */}
+        <button
+          onClick={toggleHyperFocus}
+          title={isHyperFocus ? 'Exit hyper focus' : 'Hyper focus mode'}
+          className="p-1.5 rounded-lg transition-colors"
+          style={{
+            background: isHyperFocus ? 'var(--color-primary)' : 'var(--color-surface-3)',
+            color: isHyperFocus ? 'white' : 'var(--color-text-muted)',
+          }}
+        >
+          <Zap size={14} />
+        </button>
+
+        {/* Command palette */}
         <button
           onClick={openPalette}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors"
@@ -37,8 +69,54 @@ export function Header() {
           <Keyboard size={12} />
           <span>⌘K</span>
         </button>
-        <ThemeToggle />
+
+        {/* Settings */}
+        <button
+          onClick={() => setShowSettings(true)}
+          title="Settings"
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ background: 'var(--color-surface-3)', color: 'var(--color-text-muted)' }}
+        >
+          <Settings size={14} />
+        </button>
+
+        {/* User avatar + display name */}
+        {user && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowProfile(true)}
+              className="flex items-center gap-2 px-2 py-1 rounded-lg transition-colors"
+              style={{ background: 'var(--color-surface-3)' }}
+              title="Edit profile"
+            >
+              {user.avatarBase64 ? (
+                <img src={user.avatarBase64} alt="avatar" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+              ) : (
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                  style={{ background: 'var(--color-primary)', color: 'white' }}
+                >
+                  {initials}
+                </div>
+              )}
+              <span className="text-xs font-medium hidden sm:block" style={{ color: 'var(--color-text-primary)' }}>
+                {user.displayName}
+              </span>
+            </button>
+            <button
+              onClick={logout}
+              title="Log out"
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              <LogOut size={13} />
+            </button>
+          </div>
+        )}
       </div>
+
+      <ProfileModal open={showProfile} onClose={() => setShowProfile(false)} />
+      <SettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </header>
   )
 }

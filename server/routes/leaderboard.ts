@@ -88,26 +88,39 @@ app.get('/', (c) => {
   const rows = db
     .prepare(
       `
-      SELECT
-        user_name,
-        ROUND(SUM(focus_secs) / 60.0) AS totalFocusMins,
-        ROUND(SUM(idle_secs)  / 60.0) AS totalIdleMins,
-        SUM(pomodoros)                AS totalPomodoros,
-        SUM(tasks_done)               AS totalTasksDone,
-        COUNT(*)                      AS sessionCount
-      FROM sessions
-      WHERE date >= ? AND date <= ?
-      GROUP BY user_name
+      WITH agg AS (
+        SELECT
+          user_name,
+          ROUND(SUM(focus_secs) / 60.0) AS totalFocusMins,
+          ROUND(SUM(idle_secs)  / 60.0) AS totalIdleMins,
+          SUM(pomodoros)                AS totalPomodoros,
+          SUM(tasks_done)               AS totalTasksDone,
+          COUNT(*)                      AS sessionCount
+        FROM sessions
+        WHERE date >= ? AND date <= ?
+        GROUP BY user_name
+      ),
+      latest AS (
+        SELECT user_name, last_task_name, share_last_task,
+          ROW_NUMBER() OVER (PARTITION BY user_name ORDER BY ended_at DESC) AS rn
+        FROM sessions
+        WHERE date >= ? AND date <= ?
+      )
+      SELECT agg.*, latest.last_task_name, latest.share_last_task
+      FROM agg
+      LEFT JOIN latest ON latest.user_name = agg.user_name AND latest.rn = 1
       ORDER BY totalFocusMins DESC
     `
     )
-    .all(rangeStart, rangeEnd) as {
+    .all(rangeStart, rangeEnd, rangeStart, rangeEnd) as {
     user_name: string
     totalFocusMins: number
     totalIdleMins: number
     totalPomodoros: number
     totalTasksDone: number
     sessionCount: number
+    last_task_name: string | null
+    share_last_task: number
   }[]
 
   const users = rows.map((r) => r.user_name)
@@ -122,6 +135,8 @@ app.get('/', (c) => {
     totalTasksDone: r.totalTasksDone,
     sessionCount: r.sessionCount,
     streak: streaks[r.user_name] ?? 0,
+    lastTaskName: r.last_task_name,
+    shareLastTask: r.share_last_task === 1,
   }))
 
   return c.json({ period, rangeStart, rangeEnd, entries })

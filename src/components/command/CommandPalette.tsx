@@ -12,14 +12,23 @@ export function CommandPalette() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        open ? closePalette() : useCommandStore.getState().openPalette()
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === 'k') {
+          e.preventDefault()
+          open ? closePalette() : useCommandStore.getState().openPalette()
+        } else if (e.key === 'a' && !open) {
+          // Only trigger if not inside a text input/textarea
+          const tag = (e.target as HTMLElement).tagName
+          if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+            e.preventDefault()
+            openTaskModal()
+          }
+        }
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [open, closePalette])
+  }, [open, closePalette, openTaskModal])
 
   if (!open) return null
 

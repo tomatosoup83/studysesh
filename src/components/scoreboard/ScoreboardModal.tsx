@@ -69,7 +69,7 @@ export function ScoreboardModal() {
   }
 
   return (
-    <Modal open={isOpen} onClose={closeScoreboard} title="Scoreboard" size="lg">
+    <Modal open={isOpen} onClose={closeScoreboard} title="Scoreboard" size="xl">
       {/* Period tabs */}
       <div className="flex gap-1 mb-4">
         {PERIODS.map((p) => (
@@ -121,10 +121,11 @@ export function ScoreboardModal() {
           {/* Header */}
           <div
             className="grid text-[10px] font-medium px-3 py-1"
-            style={{ color: 'var(--color-text-muted)', gridTemplateColumns: '2rem 1fr 5rem 4rem 3rem 4rem 4rem 4rem' }}
+            style={{ color: 'var(--color-text-muted)', gridTemplateColumns: '2rem 1fr 8rem 5rem 4rem 3rem 4rem 4rem 4rem' }}
           >
             <span>#</span>
             <span>Name</span>
+            <span>Last Task</span>
             <span>Focus</span>
             <span>Idle</span>
             <span>🍅</span>
@@ -144,7 +145,7 @@ export function ScoreboardModal() {
                   style={{
                     background: expandedUser === entry.userName ? 'var(--color-surface-2)' : 'transparent',
                     border: '1px solid transparent',
-                    gridTemplateColumns: '2rem 1fr 5rem 4rem 3rem 4rem 4rem 4rem',
+                    gridTemplateColumns: '2rem 1fr 8rem 5rem 4rem 3rem 4rem 4rem 4rem',
                     color: 'var(--color-text-primary)',
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface-2)')}
@@ -156,6 +157,13 @@ export function ScoreboardModal() {
                   <span className="flex items-center gap-1 font-medium">
                     {expandedUser === entry.userName ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                     {entry.userName}
+                  </span>
+                  <span className="truncate" style={{ color: 'var(--color-text-muted)' }}>
+                    {entry.shareLastTask && entry.lastTaskName
+                      ? entry.lastTaskName
+                      : entry.lastTaskName !== undefined
+                        ? <em style={{ fontSize: '0.65rem' }}>hidden by user</em>
+                        : '—'}
                   </span>
                   <span>{fmtMins(entry.totalFocusMins)}</span>
                   <span style={{ color: 'var(--color-text-muted)' }}>{fmtMins(entry.totalIdleMins)}</span>

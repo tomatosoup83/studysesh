@@ -5,13 +5,15 @@ interface TimerDisplayProps {
   secondsRemaining: number
   totalSeconds: number
   mode: TimerMode
+  isRunning?: boolean
 }
 
-export function TimerDisplay({ secondsRemaining, totalSeconds, mode }: TimerDisplayProps) {
+export function TimerDisplay({ secondsRemaining, totalSeconds, mode, isRunning }: TimerDisplayProps) {
   const minutes = Math.floor(secondsRemaining / 60)
   const seconds = secondsRemaining % 60
   const progress = totalSeconds > 0 ? secondsRemaining / totalSeconds : 1
   const color = getModeColor(mode)
+  const textColor = isRunning && mode === 'pomodoro' ? color : 'var(--color-text-primary)'
 
   const SIZE = 180
   const STROKE = 7
@@ -32,7 +34,7 @@ export function TimerDisplay({ secondsRemaining, totalSeconds, mode }: TimerDisp
       </svg>
       <span
         className="tabular-nums font-bold"
-        style={{ fontSize: '2.6rem', color: 'var(--color-text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}
+        style={{ fontSize: '2.6rem', color: textColor, letterSpacing: '-0.02em', lineHeight: 1, transition: 'color 0.3s' }}
       >
         {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
       </span>

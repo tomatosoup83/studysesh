@@ -8,11 +8,17 @@ import sessionsRoute from './routes/sessions.js'
 import leaderboardRoute from './routes/leaderboard.js'
 import csvRoute from './routes/csv.js'
 import goalsRoute from './routes/goals.js'
+import authRoute from './routes/auth.js'
+import tasksRoute from './routes/tasks.js'
+import quotesRoute from './routes/quotes.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const app = new Hono()
 
+app.route('/api/auth', authRoute)
+app.route('/api/tasks', tasksRoute)
+app.route('/api/quotes', quotesRoute)
 app.route('/api/sessions', sessionsRoute)
 app.route('/api/leaderboard', leaderboardRoute)
 app.route('/api/csv', csvRoute)

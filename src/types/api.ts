@@ -7,6 +7,8 @@ export interface PostSessionBody {
   pomodoros: number
   tasksDone: number
   notes?: string
+  lastTaskName?: string | null
+  shareLastTask?: boolean
 }
 
 export interface PostSessionResponse {
@@ -23,6 +25,8 @@ export interface LeaderboardEntry {
   totalTasksDone: number
   sessionCount: number
   streak: number
+  lastTaskName: string | null
+  shareLastTask: boolean
 }
 
 export type LeaderboardPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly'
@@ -56,4 +60,63 @@ export interface GoalResponse {
 
 export interface CsvDatesResponse {
   dates: string[]
+}
+
+export interface AuthUser {
+  id: string
+  loginName: string
+  displayName: string
+  avatarBase64: string | null
+}
+
+export interface AuthResponse {
+  token: string
+  user: AuthUser
+}
+
+export interface MeResponse {
+  user: AuthUser
+}
+
+export interface QuoteItem {
+  id: number
+  text: string
+  addedBy: string | null
+  createdAt: number
+}
+
+export interface QuotesResponse {
+  quotes: QuoteItem[]
+}
+
+export interface TaskItem {
+  id: string
+  title: string
+  description: string | null
+  columnId: string
+  priority: string
+  subjectId: string | null
+  subtasks: SubtaskItem[]
+  estimatedPomodoros: number | null
+  actualPomodoros: number
+  createdAt: number
+  completedAt: number | null
+  sortOrder: number
+}
+
+export interface SubtaskItem {
+  id: string
+  title: string
+  completed: boolean
+}
+
+export interface SubjectItem {
+  id: string
+  name: string
+  color: string
+}
+
+export interface TasksResponse {
+  tasks: TaskItem[]
+  subjects: SubjectItem[]
 }
