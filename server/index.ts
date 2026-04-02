@@ -26,7 +26,10 @@ app.route('/api/goals', goalsRoute)
 
 const distPath = join(__dirname, '../dist')
 if (existsSync(distPath)) {
-  app.use('/*', serveStatic({ root: './dist' }))
+  app.use('/*', serveStatic({ 
+    root: './dist',
+    rewriteRequestPath: (path) => path.replace(/^\/study/, '') 
+   }))
   app.get('*', (c) => {
     const html = readFileSync(join(distPath, 'index.html'), 'utf-8')
     return c.html(html)
