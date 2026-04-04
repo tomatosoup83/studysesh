@@ -29,7 +29,7 @@ export function MusicPlayer() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-hidden min-h-0">
         {/* Both modes use the same controls — the store switches the active playlist */}
         <YouTubeControls playerRef={playerRef} />
       </div>

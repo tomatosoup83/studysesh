@@ -16,7 +16,7 @@ interface TaskCardProps {
 export function TaskCard({ task, isDragOverlay = false }: TaskCardProps) {
   const [expanded, setExpanded] = useState(false)
   const { subjects } = useTaskStore()
-  const { activeTaskId } = useTimerStore()
+  const { activeTaskId, setActiveTask } = useTimerStore()
   const {
     attributes, listeners, setNodeRef,
     transform, transition, isDragging,
@@ -60,6 +60,16 @@ export function TaskCard({ task, isDragOverlay = false }: TaskCardProps) {
           >
             {task.title}
           </p>
+          {task.columnId !== 'completed' && (
+            <button
+              className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded"
+              style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
+              onClick={(e) => { e.stopPropagation(); setActiveTask(isActive ? null : task.id) }}
+              title={isActive ? 'Stop tracking' : 'Track with Pomodoro'}
+            >
+              <Timer size={12} />
+            </button>
+          )}
           <ChevronRight
             size={12}
             className="flex-shrink-0 mt-0.5 opacity-0 group-hover:opacity-60 transition-opacity"

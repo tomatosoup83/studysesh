@@ -17,8 +17,10 @@ import { KanbanColumn } from './KanbanColumn'
 import { TaskCard } from './TaskCard'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import { useResize } from '../../hooks/useResize'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 export function KanbanBoard() {
+  const isMobile = useIsMobile()
   const [activeId, setActiveId] = useState<string | null>(null)
   const { tasks, taskOrder, moveTask, reorderTask, columns } = useTaskStore()
 
@@ -68,6 +70,28 @@ export function KanbanBoard() {
   }
 
   const activeTask = activeId ? tasks[activeId] : null
+
+  if (isMobile) {
+    return (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="flex flex-col p-2 h-full min-h-0 overflow-y-auto gap-3">
+          {columns.map((colId) => (
+            <div key={colId} style={{ minHeight: 120 }}>
+              <KanbanColumn columnId={colId} />
+            </div>
+          ))}
+        </div>
+        <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
+          {activeTask && <TaskCard task={activeTask} isDragOverlay />}
+        </DragOverlay>
+      </DndContext>
+    )
+  }
 
   return (
     <DndContext

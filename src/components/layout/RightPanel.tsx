@@ -3,12 +3,18 @@ import { ResizeHandle } from '../ui/ResizeHandle'
 import { useResize } from '../../hooks/useResize'
 import { PomodoroTimer } from '../timer/PomodoroTimer'
 import { MusicPlayer } from '../music/MusicPlayer'
+import { MusicPopupButton } from '../music/MusicPopupButton'
 import { useUIStore } from '../../stores/uiStore'
 import { useMusicStore } from '../../stores/musicStore'
+import { useSettingsStore } from '../../stores/settingsStore'
+import { useIsMobile } from '../../hooks/useIsMobile'
 
 export function RightPanel() {
   const { musicPanelVisible, isHyperFocus, toggleMusicPanel } = useUIStore()
   const { setPlaying } = useMusicStore()
+  const { musicPlayerMode } = useSettingsStore()
+  const isMobile = useIsMobile()
+  const usePopup = isMobile || musicPlayerMode === 'popup'
   const { size: timerHeight, onPointerDown } = useResize({
     direction: 'vertical',
     initial: 320,
@@ -32,11 +38,38 @@ export function RightPanel() {
         className="rounded-xl h-full overflow-hidden flex flex-col"
         style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-border)' }}
       >
-        <div className="px-4 py-2.5 border-b flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="px-4 py-2.5 border-b flex-shrink-0 flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Pomodoro Timer</h2>
+          <MusicPopupButton
+            buttonClassName="p-1.5 rounded-lg transition-colors"
+            buttonStyle={{ color: 'var(--color-text-muted)', background: 'var(--color-surface-3)' }}
+          />
         </div>
         <div className="flex-1 p-4 overflow-y-auto flex items-center justify-center">
           <PomodoroTimer />
+        </div>
+      </div>
+    )
+  }
+
+  // Popup mode: timer takes full height, music accessible via floating button
+  if (usePopup) {
+    return (
+      <div className="flex flex-col h-full" style={{ gap: 0 }}>
+        <div
+          className="rounded-xl flex-1 overflow-hidden flex flex-col"
+          style={{ background: 'var(--color-panel-bg)', border: '1px solid var(--color-border)' }}
+        >
+          <div className="px-4 py-2.5 border-b flex-shrink-0 flex items-center justify-between" style={{ borderColor: 'var(--color-border)' }}>
+            <h2 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Pomodoro Timer</h2>
+            <MusicPopupButton
+              buttonClassName="p-1.5 rounded-lg transition-colors"
+              buttonStyle={{ color: 'var(--color-text-muted)', background: 'var(--color-surface-3)' }}
+            />
+          </div>
+          <div className="flex-1 p-4 overflow-y-auto">
+            <PomodoroTimer />
+          </div>
         </div>
       </div>
     )

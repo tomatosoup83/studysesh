@@ -5,6 +5,7 @@ import { arrayMove } from '@dnd-kit/sortable'
 import { Task, TaskId, ColumnId, Subject, Priority, Subtask } from '../types/task'
 import { api } from '../lib/api'
 import { useSessionStore } from './sessionStore'
+import { useTimerStore } from './timerStore'
 
 interface TaskStore {
   tasks: Record<TaskId, Task>
@@ -173,6 +174,12 @@ export const useTaskStore = create<TaskStore>()(
         if (toColumn === 'completed' && !wasCompleted) {
           const { isActive, addCompletedTask } = useSessionStore.getState()
           if (isActive) addCompletedTask(id)
+        }
+
+        // Clear active Pomodoro tracking if this task was being tracked
+        if (toColumn === 'completed') {
+          const { activeTaskId, setActiveTask } = useTimerStore.getState()
+          if (activeTaskId === id) setActiveTask(null)
         }
 
         api.tasks.update(id, {

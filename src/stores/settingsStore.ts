@@ -83,6 +83,8 @@ interface SettingsStore {
   autoStartBreaks: boolean
   longBreakInterval: number
   shareLastTask: boolean
+  showTimerInTitle: boolean
+  musicPlayerMode: 'inline' | 'popup'
   alarmSoundBase64: string | null
   alarmSoundName: string | null
   alarmDurationSecs: number
@@ -94,6 +96,8 @@ interface SettingsStore {
   setAutoStartBreaks: (v: boolean) => void
   setLongBreakInterval: (v: number) => void
   setShareLastTask: (v: boolean) => void
+  setShowTimerInTitle: (v: boolean) => void
+  setMusicPlayerMode: (v: 'inline' | 'popup') => void
   setAlarmSound: (base64: string | null, name: string | null) => void
   setAlarmDuration: (secs: number) => void
 }
@@ -108,6 +112,8 @@ export const useSettingsStore = create<SettingsStore>()(
       autoStartBreaks: false,
       longBreakInterval: 4,
       shareLastTask: true,
+      showTimerInTitle: true,
+      musicPlayerMode: 'inline',
       alarmSoundBase64: null,
       alarmSoundName: null,
       alarmDurationSecs: 5,
@@ -122,6 +128,8 @@ export const useSettingsStore = create<SettingsStore>()(
       setAutoStartBreaks: (v) => set({ autoStartBreaks: v }),
       setLongBreakInterval: (v) => set({ longBreakInterval: v }),
       setShareLastTask: (v) => set({ shareLastTask: v }),
+      setShowTimerInTitle: (v) => set({ showTimerInTitle: v }),
+      setMusicPlayerMode: (v) => set({ musicPlayerMode: v }),
       setAlarmSound: (base64, name) => set({ alarmSoundBase64: base64, alarmSoundName: name }),
       setAlarmDuration: (secs) => set({ alarmDurationSecs: secs }),
     }),

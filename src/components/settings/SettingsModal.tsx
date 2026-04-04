@@ -60,6 +60,8 @@ export function SettingsModal({ open, onClose }: Props) {
     timerDurations, setTimerDuration, autoStartBreaks, setAutoStartBreaks,
     longBreakInterval, setLongBreakInterval, notificationsEnabled, setNotificationsEnabled,
     shareLastTask, setShareLastTask,
+    showTimerInTitle, setShowTimerInTitle,
+    musicPlayerMode, setMusicPlayerMode,
     alarmSoundName, alarmDurationSecs, setAlarmSound, setAlarmDuration } = useSettingsStore()
   const { user } = useAuthStore()
   const { reset } = useTimerStore()
@@ -345,6 +347,28 @@ export function SettingsModal({ open, onClose }: Props) {
                   <input type="checkbox" checked={notificationsEnabled} onChange={(e) => setNotificationsEnabled(e.target.checked)} style={{ accentColor: 'var(--color-primary)' }} />
                   <span style={{ color: 'var(--color-text-secondary)' }}>Desktop notifications</span>
                 </label>
+                <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
+                  <input type="checkbox" checked={showTimerInTitle} onChange={(e) => setShowTimerInTitle(e.target.checked)} style={{ accentColor: 'var(--color-primary)' }} />
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Show timer in browser tab title</span>
+                </label>
+                <div className="flex items-center justify-between text-xs">
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Music player</span>
+                  <div className="flex gap-1 p-0.5 rounded-lg" style={{ background: 'var(--color-surface-3)' }}>
+                    {(['inline', 'popup'] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => setMusicPlayerMode(m)}
+                        className="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all capitalize"
+                        style={{
+                          background: musicPlayerMode === m ? 'var(--color-primary)' : 'transparent',
+                          color: musicPlayerMode === m ? 'white' : 'var(--color-text-muted)',
+                        }}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 

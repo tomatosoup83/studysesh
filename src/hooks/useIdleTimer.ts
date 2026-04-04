@@ -1,21 +1,35 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { useSessionStore } from '../stores/sessionStore'
 import { useTimerStore } from '../stores/timerStore'
 
 export function useIdleTimer() {
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
   useEffect(() => {
-    intervalRef.current = setInterval(() => {
+    let idleStartMs: number | null = null
+
+    const tick = () => {
       const { isActive, addIdleTime } = useSessionStore.getState()
       const { status } = useTimerStore.getState()
+      const now = Date.now()
+
       if (isActive && status !== 'running') {
-        addIdleTime(1)
+        if (idleStartMs === null) idleStartMs = now
+        const delta = Math.floor((now - idleStartMs) / 1000)
+        if (delta > 0) {
+          addIdleTime(delta)
+          idleStartMs = now
+        }
+      } else {
+        idleStartMs = null
       }
-    }, 1000)
+    }
+
+    const interval = setInterval(tick, 1000)
+    const onVisibility = () => { if (document.visibilityState === 'visible') tick() }
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibility)
     }
   }, [])
 }

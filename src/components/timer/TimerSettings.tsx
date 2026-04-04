@@ -8,9 +8,9 @@ import { Slider } from '../ui/Slider'
 export function TimerSettings() {
   const [open, setOpen] = useState(false)
   const { timerDurations, setTimerDuration, autoStartBreaks, setAutoStartBreaks, longBreakInterval, setLongBreakInterval, notificationsEnabled, setNotificationsEnabled } = useSettingsStore()
-  const { reset } = useTimerStore()
+  const { reset, status } = useTimerStore()
 
-  const handleClose = () => { setOpen(false); reset(timerDurations) }
+  const handleClose = () => { setOpen(false); if (status !== 'running') reset(timerDurations) }
 
   return (
     <>
