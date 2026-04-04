@@ -18,6 +18,7 @@ export interface Task {
   subtasks: Subtask[]
   createdAt: number
   completedAt?: number
+  dueDate?: number
   estimatedPomodoros?: number
   actualPomodoros: number
 }

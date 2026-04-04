@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { ChevronDown, BarChart2 } from 'lucide-react'
+import { ChevronDown, BarChart2, CalendarDays } from 'lucide-react'
 import { KanbanBoard } from '../board/KanbanBoard'
 import { SessionTracker } from '../session/SessionTracker'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import { TaskStatsModal } from '../board/TaskStatsModal'
+import { CalendarModal } from '../calendar/CalendarModal'
 import { useResize } from '../../hooks/useResize'
 import { useUIStore } from '../../stores/uiStore'
 
 export function LeftPanel() {
   const { sessionPanelVisible, toggleSessionPanel } = useUIStore()
   const [showStats, setShowStats] = useState(false)
+  const [showCalendar, setShowCalendar] = useState(false)
   const { size: sessionHeight, onPointerDown } = useResize({
     direction: 'vertical',
     initial: 220,
@@ -59,20 +61,31 @@ export function LeftPanel() {
           <h2 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
             Task Board
           </h2>
-          <button
-            onClick={() => setShowStats(true)}
-            title="Task statistics"
-            className="p-1.5 rounded-lg transition-colors"
-            style={{ background: 'var(--color-surface-3)', color: 'var(--color-text-muted)' }}
-          >
-            <BarChart2 size={13} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowCalendar(true)}
+              title="Calendar"
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ background: 'var(--color-surface-3)', color: 'var(--color-text-muted)' }}
+            >
+              <CalendarDays size={13} />
+            </button>
+            <button
+              onClick={() => setShowStats(true)}
+              title="Task statistics"
+              className="p-1.5 rounded-lg transition-colors"
+              style={{ background: 'var(--color-surface-3)', color: 'var(--color-text-muted)' }}
+            >
+              <BarChart2 size={13} />
+            </button>
+          </div>
         </div>
         <div className="h-full" style={{ height: 'calc(100% - 40px)' }}>
           <KanbanBoard />
         </div>
       </div>
       <TaskStatsModal open={showStats} onClose={() => setShowStats(false)} />
+      <CalendarModal open={showCalendar} onClose={() => setShowCalendar(false)} />
     </div>
   )
 }

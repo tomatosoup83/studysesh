@@ -20,6 +20,7 @@ interface TaskRow {
   created_at: number
   completed_at: number | null
   sort_order: number
+  due_date: number | null
 }
 
 interface SubjectRow {
@@ -43,6 +44,7 @@ function taskToJson(r: TaskRow) {
     createdAt: r.created_at,
     completedAt: r.completed_at,
     sortOrder: r.sort_order,
+    dueDate: r.due_date ?? undefined,
   }
 }
 
@@ -63,13 +65,13 @@ app.post('/', async (c) => {
   const body = await c.req.json().catch(() => null)
   if (!body) return c.json({ error: 'Invalid JSON' }, 400)
 
-  const { id, title, description, columnId, priority, subjectId, subtasks, estimatedPomodoros, actualPomodoros, createdAt, completedAt, sortOrder } = body
+  const { id, title, description, columnId, priority, subjectId, subtasks, estimatedPomodoros, actualPomodoros, createdAt, completedAt, sortOrder, dueDate } = body
   if (!title || typeof title !== 'string') return c.json({ error: 'title is required' }, 400)
 
   const taskId = id ?? nanoid()
   db.prepare(`
-    INSERT INTO tasks (id, user_id, title, description, column_id, priority, subject_id, subtasks_json, estimated_pomodoros, actual_pomodoros, created_at, completed_at, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (id, user_id, title, description, column_id, priority, subject_id, subtasks_json, estimated_pomodoros, actual_pomodoros, created_at, completed_at, sort_order, due_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     taskId, userId, title,
     description ?? null,
@@ -81,7 +83,8 @@ app.post('/', async (c) => {
     actualPomodoros ?? 0,
     createdAt ?? Date.now(),
     completedAt ?? null,
-    sortOrder ?? 0
+    sortOrder ?? 0,
+    dueDate ?? null
   )
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as TaskRow
@@ -102,6 +105,7 @@ app.patch('/:id', async (c) => {
     title: 'title', description: 'description', columnId: 'column_id',
     priority: 'priority', subjectId: 'subject_id', estimatedPomodoros: 'estimated_pomodoros',
     actualPomodoros: 'actual_pomodoros', completedAt: 'completed_at', sortOrder: 'sort_order',
+    dueDate: 'due_date',
   }
 
   const updates: string[] = []

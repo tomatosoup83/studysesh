@@ -18,6 +18,7 @@ interface TaskStore {
     priority?: Priority
     description?: string
     estimatedPomodoros?: number
+    dueDate?: number
   }) => TaskId
   updateTask: (id: TaskId, updates: Partial<Task>) => void
   deleteTask: (id: TaskId) => void
@@ -69,6 +70,7 @@ export const useTaskStore = create<TaskStore>()(
               actualPomodoros: t.actualPomodoros,
               createdAt: t.createdAt,
               completedAt: t.completedAt ?? undefined,
+              dueDate: t.dueDate ?? undefined,
             }
             if (taskOrder[colId]) taskOrder[colId].push(t.id)
           }
@@ -85,11 +87,11 @@ export const useTaskStore = create<TaskStore>()(
 
       addTask: (title, opts = {}) => {
         const id = nanoid()
-        const { columnId = 'not-started', subjectId, priority = 'medium', description, estimatedPomodoros } = opts
+        const { columnId = 'not-started', subjectId, priority = 'medium', description, estimatedPomodoros, dueDate } = opts
         const task: Task = {
           id, title, description, columnId, priority,
           subjectId, subtasks: [], createdAt: Date.now(),
-          estimatedPomodoros, actualPomodoros: 0,
+          estimatedPomodoros, actualPomodoros: 0, dueDate,
         }
         set((s) => ({
           tasks: { ...s.tasks, [id]: task },
@@ -108,6 +110,7 @@ export const useTaskStore = create<TaskStore>()(
           actualPomodoros: 0,
           createdAt: task.createdAt,
           sortOrder: get().taskOrder[columnId].length,
+          dueDate,
         }).catch(() => {
           // Rollback on failure
           set((s) => {

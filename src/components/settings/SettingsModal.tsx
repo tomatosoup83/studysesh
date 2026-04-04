@@ -5,17 +5,18 @@ import { Slider } from '../ui/Slider'
 import { useSettingsStore, Theme, CSS_VAR_KEYS, CssVarKey, THEME_PRESETS } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useTimerStore } from '../../stores/timerStore'
+import { useTaskStore } from '../../stores/taskStore'
 import { ProfileModal } from '../auth/ProfileModal'
 import { playAlarm } from '../../lib/alarm'
 import { api } from '../../lib/api'
-import type { QuoteItem } from '../../types/api'
+import type { QuoteItem, ColorPresetItem } from '../../types/api'
 
 interface Props {
   open: boolean
   onClose: () => void
 }
 
-type Section = 'account' | 'appearance' | 'timer' | 'alarm' | 'privacy' | 'quotes'
+type Section = 'account' | 'appearance' | 'timer' | 'alarm' | 'privacy' | 'quotes' | 'subjects'
 
 const VAR_LABELS: { key: CssVarKey; label: string }[] = [
   { key: '--color-bg', label: 'Background' },
@@ -65,6 +66,7 @@ export function SettingsModal({ open, onClose }: Props) {
     alarmSoundName, alarmDurationSecs, setAlarmSound, setAlarmDuration } = useSettingsStore()
   const { user } = useAuthStore()
   const { reset } = useTimerStore()
+  const { subjects, addSubject, deleteSubject } = useTaskStore()
 
   // Local hex text state so we can type freely without losing focus
   const [hexInputs, setHexInputs] = useState<Record<string, string>>(() =>
@@ -82,9 +84,23 @@ export function SettingsModal({ open, onClose }: Props) {
   const [quoteSaving, setQuoteSaving] = useState(false)
   const [quoteError, setQuoteError] = useState('')
 
+  const [presets, setPresets] = useState<ColorPresetItem[]>([])
+  const [presetName, setPresetName] = useState('')
+  const [presetSaving, setPresetSaving] = useState(false)
+
+  const [newSubjectName, setNewSubjectName] = useState('')
+  const [newSubjectColor, setNewSubjectColor] = useState('#6366f1')
+  const [subjectSaving, setSubjectSaving] = useState(false)
+
   useEffect(() => {
     if (open && section === 'quotes') {
       api.quotes.getAll().then((r) => setQuotes(r.quotes)).catch(() => {})
+    }
+  }, [open, section])
+
+  useEffect(() => {
+    if (open && section === 'appearance') {
+      api.presets.getAll().then((r) => setPresets(r.presets)).catch(() => {})
     }
   }, [open, section])
 
@@ -109,6 +125,50 @@ export function SettingsModal({ open, onClose }: Props) {
       await api.quotes.delete(id)
       setQuotes((prev) => prev.filter((q) => q.id !== id))
     } catch { /* ignore */ }
+  }
+
+  const handleSavePreset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!presetName.trim()) return
+    setPresetSaving(true)
+    try {
+      const p = await api.presets.save(presetName.trim(), customThemeVars)
+      setPresets((prev) => [p, ...prev])
+      setPresetName('')
+    } catch { /* ignore */ } finally {
+      setPresetSaving(false)
+    }
+  }
+
+  const handleDeletePreset = async (id: string) => {
+    try {
+      await api.presets.delete(id)
+      setPresets((prev) => prev.filter((p) => p.id !== id))
+    } catch { /* ignore */ }
+  }
+
+  const handleApplyPreset = (preset: ColorPresetItem) => {
+    CSS_VAR_KEYS.forEach((key) => {
+      if (preset.vars[key]) setCustomThemeVar(key, preset.vars[key])
+    })
+    setTheme('custom')
+  }
+
+  const handleAddSubject = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newSubjectName.trim()) return
+    setSubjectSaving(true)
+    try {
+      addSubject(newSubjectName.trim(), newSubjectColor)
+      setNewSubjectName('')
+      setNewSubjectColor('#6366f1')
+    } finally {
+      setSubjectSaving(false)
+    }
+  }
+
+  const handleDeleteSubject = (id: string) => {
+    deleteSubject(id)
   }
 
   const handleAlarmFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,6 +206,7 @@ export function SettingsModal({ open, onClose }: Props) {
     { key: 'alarm', label: 'Alarm' },
     { key: 'privacy', label: 'Privacy' },
     { key: 'quotes', label: 'Quotes' },
+    { key: 'subjects', label: 'Subjects' },
   ]
 
   return (
@@ -244,6 +305,69 @@ export function SettingsModal({ open, onClose }: Props) {
                     <span style={{ color: theme === 'custom' ? customThemeVars['--color-primary'] : '#888', fontSize: '0.65rem' }}>Custom</span>
                   </button>
                 </div>
+
+                {/* Save as preset (only when custom theme active) */}
+                {theme === 'custom' && user && (
+                  <form onSubmit={handleSavePreset} className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      placeholder="Preset name..."
+                      value={presetName}
+                      onChange={(e) => setPresetName(e.target.value)}
+                      className="flex-1 text-xs px-2 py-1.5 rounded-lg outline-none"
+                      style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={presetSaving || !presetName.trim()}
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium disabled:opacity-40"
+                      style={{ background: 'var(--color-primary)', color: 'white' }}
+                    >
+                      Save preset
+                    </button>
+                  </form>
+                )}
+
+                {/* Community presets */}
+                {presets.length > 0 && (
+                  <div className="space-y-2 pt-1" style={{ borderTop: '1px solid var(--color-border)' }}>
+                    <p className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Community presets</p>
+                    <div className="space-y-1 max-h-36 overflow-y-auto">
+                      {presets.map((preset) => {
+                        const swatchKeys = ['--color-bg', '--color-primary', '--color-secondary', '--color-accent', '--color-surface', '--color-border', '--color-text-primary'] as const
+                        return (
+                          <div key={preset.id} className="flex items-center gap-2 group">
+                            <div className="flex gap-0.5 flex-shrink-0">
+                              {swatchKeys.map((k) => (
+                                <div key={k} className="w-3 h-3 rounded-sm" style={{ background: preset.vars[k] ?? '#888' }} />
+                              ))}
+                            </div>
+                            <span className="flex-1 text-xs truncate" style={{ color: 'var(--color-text-primary)' }}>{preset.name}</span>
+                            {preset.createdBy && (
+                              <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>by {preset.createdBy}</span>
+                            )}
+                            <button
+                              onClick={() => handleApplyPreset(preset)}
+                              className="text-[10px] px-2 py-0.5 rounded font-medium flex-shrink-0"
+                              style={{ background: 'var(--color-primary)', color: 'white' }}
+                            >
+                              Apply
+                            </button>
+                            {user && (
+                              <button
+                                onClick={() => handleDeletePreset(preset.id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                style={{ color: 'var(--color-text-muted)' }}
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Custom color editor */}
                 {theme === 'custom' && (
@@ -501,6 +625,64 @@ export function SettingsModal({ open, onClose }: Props) {
                   ))}
                   {quotes.length === 0 && (
                     <p className="text-xs text-center py-4" style={{ color: 'var(--color-text-muted)' }}>No quotes yet.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {section === 'subjects' && (
+              <div className="space-y-4">
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Add custom subjects to tag your tasks.</p>
+                <form onSubmit={handleAddSubject} className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={newSubjectColor}
+                    onChange={(e) => setNewSubjectColor(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer border-0 p-0 flex-shrink-0"
+                    style={{ background: 'none' }}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Subject name..."
+                    value={newSubjectName}
+                    onChange={(e) => setNewSubjectName(e.target.value)}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg outline-none"
+                    style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={subjectSaving || !newSubjectName.trim()}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-40"
+                    style={{ background: 'var(--color-primary)', color: 'white' }}
+                  >
+                    Add
+                  </button>
+                </form>
+                <div className="space-y-1 max-h-52 overflow-y-auto">
+                  {subjects.map((s) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs group"
+                      style={{ background: 'var(--color-surface-2)' }}
+                    >
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                      <span className="flex-1" style={{ color: 'var(--color-text-primary)' }}>{s.name}</span>
+                      {user && (
+                        <button
+                          onClick={() => handleDeleteSubject(s.id)}
+                          title="Delete subject"
+                          className="flex-shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ color: 'var(--color-text-muted)' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-danger)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {subjects.length === 0 && (
+                    <p className="text-xs text-center py-4" style={{ color: 'var(--color-text-muted)' }}>No subjects yet.</p>
                   )}
                 </div>
               </div>

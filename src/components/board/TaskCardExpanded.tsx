@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Trash2, Timer } from 'lucide-react'
+import { Trash2, Timer, CalendarDays } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 import { Task } from '../../types/task'
 import { useTaskStore } from '../../stores/taskStore'
 import { useTimerStore } from '../../stores/timerStore'
@@ -15,6 +16,9 @@ interface TaskCardExpandedProps {
 export function TaskCardExpanded({ task, onClose }: TaskCardExpandedProps) {
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(task.description ?? '')
+  const [dueDate, setDueDate] = useState<string>(() =>
+    task.dueDate ? format(task.dueDate, 'yyyy-MM-dd') : ''
+  )
   const { updateTask, deleteTask, subjects } = useTaskStore()
   const { setActiveTask, activeTaskId } = useTimerStore()
 
@@ -25,6 +29,7 @@ export function TaskCardExpanded({ task, onClose }: TaskCardExpandedProps) {
     updateTask(task.id, {
       title: title.trim() || task.title,
       description: description.trim() || undefined,
+      dueDate: dueDate ? parseISO(dueDate).getTime() : undefined,
     })
     onClose()
   }
@@ -78,6 +83,27 @@ export function TaskCardExpanded({ task, onClose }: TaskCardExpandedProps) {
             color: 'var(--color-text-primary)',
           }}
         />
+
+        <div className="flex items-center gap-2">
+          <CalendarDays size={13} style={{ color: 'var(--color-text-muted)', flexShrink: 0 }} />
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="flex-1 text-xs px-2 py-1.5 rounded-lg border outline-none"
+            style={{ background: 'var(--color-surface-2)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
+          />
+          {dueDate && (
+            <button
+              type="button"
+              onClick={() => setDueDate('')}
+              className="text-xs px-2 py-1 rounded"
+              style={{ color: 'var(--color-text-muted)' }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
 
         <SubtaskList taskId={task.id} subtasks={task.subtasks} />
 

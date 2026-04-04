@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Flag, BookOpen, Inbox, Timer } from 'lucide-react'
+import { Flag, BookOpen, Inbox, Timer, CalendarDays } from 'lucide-react'
+import { format, parseISO } from 'date-fns'
 import { Modal } from '../ui/Modal'
 import { useTaskModalStore } from '../../stores/taskModalStore'
 import { useTaskStore } from '../../stores/taskStore'
@@ -12,7 +13,7 @@ const PRIORITIES: { value: Priority; label: string; color: string }[] = [
 ]
 
 export function AddTaskModal() {
-  const { isOpen, close } = useTaskModalStore()
+  const { isOpen, close, defaultDueDate } = useTaskModalStore()
   const { addTask, subjects } = useTaskStore()
 
   const [title, setTitle] = useState('')
@@ -22,10 +23,14 @@ export function AddTaskModal() {
   const [columnId, setColumnId] = useState<ColumnId>('not-started')
   const [pomodoroEnabled, setPomodoroEnabled] = useState(false)
   const [estimatedPomodoros, setEstimatedPomodoros] = useState(1)
+  const [dueDate, setDueDate] = useState<string>(() =>
+    defaultDueDate ? format(defaultDueDate, 'yyyy-MM-dd') : ''
+  )
 
   const [showPriorityMenu, setShowPriorityMenu] = useState(false)
   const [showSubjectMenu, setShowSubjectMenu] = useState(false)
   const [showColumnMenu, setShowColumnMenu] = useState(false)
+  const [showDateInput, setShowDateInput] = useState(!!defaultDueDate)
 
   const reset = () => {
     setTitle('')
@@ -35,9 +40,11 @@ export function AddTaskModal() {
     setColumnId('not-started')
     setPomodoroEnabled(false)
     setEstimatedPomodoros(1)
+    setDueDate('')
     setShowPriorityMenu(false)
     setShowSubjectMenu(false)
     setShowColumnMenu(false)
+    setShowDateInput(false)
   }
 
   const handleClose = () => { reset(); close() }
@@ -51,6 +58,7 @@ export function AddTaskModal() {
       subjectId: subjectId || undefined,
       columnId,
       estimatedPomodoros: pomodoroEnabled ? estimatedPomodoros : undefined,
+      dueDate: dueDate ? parseISO(dueDate).getTime() : undefined,
     })
     handleClose()
   }
@@ -160,6 +168,47 @@ export function AddTaskModal() {
                     {s.name}
                   </button>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Due date */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => { setShowDateInput((v) => !v); setShowPriorityMenu(false); setShowSubjectMenu(false); setShowColumnMenu(false) }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+              style={{
+                borderColor: dueDate ? 'var(--color-primary)' : 'var(--color-border)',
+                color: dueDate ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                background: 'var(--color-surface-2)',
+              }}
+            >
+              <CalendarDays size={12} />
+              {dueDate ? format(parseISO(dueDate), 'MMM d') : 'Due date'}
+            </button>
+            {showDateInput && (
+              <div
+                className="absolute top-full left-0 mt-1 z-10 rounded-lg p-2 shadow-lg"
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+              >
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="text-xs px-2 py-1 rounded outline-none"
+                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                />
+                {dueDate && (
+                  <button
+                    type="button"
+                    onClick={() => { setDueDate(''); setShowDateInput(false) }}
+                    className="block w-full text-left text-xs mt-1 px-2 py-1 rounded"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
             )}
           </div>

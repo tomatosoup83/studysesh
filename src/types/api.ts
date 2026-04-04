@@ -101,8 +101,10 @@ export interface TaskItem {
   actualPomodoros: number
   createdAt: number
   completedAt: number | null
+  dueDate?: number | null
   sortOrder: number
 }
+
 
 export interface SubtaskItem {
   id: string
@@ -119,4 +121,16 @@ export interface SubjectItem {
 export interface TasksResponse {
   tasks: TaskItem[]
   subjects: SubjectItem[]
+}
+
+export interface ColorPresetItem {
+  id: string
+  name: string
+  vars: Record<string, string>
+  createdBy: string | null
+  createdAt: number
+}
+
+export interface ColorPresetsResponse {
+  presets: ColorPresetItem[]
 }

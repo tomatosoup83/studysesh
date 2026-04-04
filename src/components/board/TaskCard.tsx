@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Timer, ChevronRight } from 'lucide-react'
+import { Timer, ChevronRight, CalendarDays } from 'lucide-react'
+import { format, isPast, isToday } from 'date-fns'
 import { Task } from '../../types/task'
 import { useTaskStore } from '../../stores/taskStore'
 import { useTimerStore } from '../../stores/timerStore'
@@ -99,6 +100,21 @@ export function TaskCard({ task, isDragOverlay = false }: TaskCardProps) {
             >
               <Timer size={9} />
               {task.actualPomodoros}/{task.estimatedPomodoros}
+            </span>
+          )}
+          {task.dueDate && task.columnId !== 'completed' && (
+            <span
+              className="flex items-center gap-0.5 text-[10px]"
+              style={{
+                color: isPast(task.dueDate) && !isToday(task.dueDate)
+                  ? 'var(--color-danger)'
+                  : isToday(task.dueDate)
+                    ? 'var(--color-warning)'
+                    : 'var(--color-text-muted)',
+              }}
+            >
+              <CalendarDays size={9} />
+              {format(task.dueDate, 'MMM d')}
             </span>
           )}
           {isActive && (

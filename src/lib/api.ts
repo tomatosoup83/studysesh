@@ -13,6 +13,8 @@ import type {
   TaskItem,
   TasksResponse,
   SubjectItem,
+  ColorPresetItem,
+  ColorPresetsResponse,
 } from '../types/api'
 
 function getToken(): string | null {
@@ -154,6 +156,22 @@ export const api = {
     },
     deleteSubject(id: string): Promise<void> {
       return request<void>(`/api/tasks/subjects/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  presets: {
+    getAll(): Promise<ColorPresetsResponse> {
+      return request<ColorPresetsResponse>('/api/presets')
+    },
+    save(name: string, vars: Record<string, string>): Promise<ColorPresetItem> {
+      return request<ColorPresetItem>('/api/presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, vars }),
+      })
+    },
+    delete(id: string): Promise<void> {
+      return request<void>(`/api/presets/${id}`, { method: 'DELETE' })
     },
   },
 

@@ -78,11 +78,20 @@ db.exec(`
     added_by   TEXT,
     created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
   );
+
+  CREATE TABLE IF NOT EXISTS color_presets (
+    id         TEXT    PRIMARY KEY,
+    name       TEXT    NOT NULL,
+    vars_json  TEXT    NOT NULL,
+    created_by TEXT,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+  );
 `)
 
 // Migrations — use try/catch since ALTER TABLE fails if column already exists
 try { db.prepare('ALTER TABLE sessions ADD COLUMN last_task_name TEXT').run() } catch { /* already exists */ }
 try { db.prepare('ALTER TABLE sessions ADD COLUMN share_last_task INTEGER NOT NULL DEFAULT 1').run() } catch { /* already exists */ }
+try { db.prepare('ALTER TABLE tasks ADD COLUMN due_date INTEGER').run() } catch { /* already exists */ }
 
 // Seed quotes from quotes.txt if table is empty
 const quoteCount = (db.prepare('SELECT COUNT(*) as c FROM quotes').get() as { c: number }).c

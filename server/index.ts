@@ -11,6 +11,7 @@ import goalsRoute from './routes/goals.js'
 import authRoute from './routes/auth.js'
 import tasksRoute from './routes/tasks.js'
 import quotesRoute from './routes/quotes.js'
+import presetsRoute from './routes/presets.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -19,6 +20,7 @@ const app = new Hono()
 app.route('/api/auth', authRoute)
 app.route('/api/tasks', tasksRoute)
 app.route('/api/quotes', quotesRoute)
+app.route('/api/presets', presetsRoute)
 app.route('/api/sessions', sessionsRoute)
 app.route('/api/leaderboard', leaderboardRoute)
 app.route('/api/csv', csvRoute)
