@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Brain, Keyboard, Zap, Settings, LogOut } from 'lucide-react'
+import { Brain, Flower2, Keyboard, Zap, Settings, LogOut } from 'lucide-react'
 import { useCommandStore } from '../../stores/commandStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useUIStore } from '../../stores/uiStore'
+import { useToastStore } from '../../stores/toastStore'
 import { ProfileModal } from '../auth/ProfileModal'
 import { SettingsModal } from '../settings/SettingsModal'
 import { api } from '../../lib/api'
@@ -10,7 +11,8 @@ import { api } from '../../lib/api'
 export function Header() {
   const { openPalette } = useCommandStore()
   const { user, logout } = useAuthStore()
-  const { isHyperFocus, toggleHyperFocus } = useUIStore()
+  const { isHyperFocus, toggleHyperFocus, mode, toggleMode } = useUIStore()
+  const { addToast } = useToastStore()
   const [showProfile, setShowProfile] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [quote, setQuote] = useState('')
@@ -33,7 +35,10 @@ export function Header() {
       style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center gap-2 min-w-0">
-        <Brain size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+        {mode === 'personal'
+          ? <Flower2 size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+          : <Brain size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+        }
         <span className="font-bold text-base tracking-tight flex-shrink-0" style={{ color: 'var(--color-text-primary)' }}>
           StudySesh
         </span>
@@ -47,6 +52,23 @@ export function Header() {
         )}
       </div>
       <div className="flex items-center gap-2">
+        {/* Mode toggle */}
+        <button
+          onClick={() => {
+            const nextMode = mode === 'study' ? 'personal' : 'study'
+            toggleMode()
+            addToast(`Switched to ${nextMode === 'study' ? 'Study' : 'Personal'} mode`, 'info')
+          }}
+          title={mode === 'study' ? 'Switch to Personal mode' : 'Switch to Study mode'}
+          className="p-1.5 rounded-lg transition-colors"
+          style={{ background: 'var(--color-surface-3)', color: 'var(--color-text-muted)' }}
+        >
+          {mode === 'study'
+            ? <Flower2 size={14} />
+            : <Brain size={14} />
+          }
+        </button>
+
         {/* Hyper focus toggle */}
         <button
           onClick={toggleHyperFocus}

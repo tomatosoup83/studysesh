@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Flag, BookOpen, Inbox, Timer, CalendarDays } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { Modal } from '../ui/Modal'
 import { useTaskModalStore } from '../../stores/taskModalStore'
 import { useTaskStore } from '../../stores/taskStore'
+import { useToastStore } from '../../stores/toastStore'
 import { COLUMNS, ColumnId, Priority } from '../../types/task'
 
 const PRIORITIES: { value: Priority; label: string; color: string }[] = [
@@ -13,14 +14,15 @@ const PRIORITIES: { value: Priority; label: string; color: string }[] = [
 ]
 
 export function AddTaskModal() {
-  const { isOpen, close, defaultDueDate } = useTaskModalStore()
+  const { isOpen, close, defaultDueDate, defaultColumnId } = useTaskModalStore()
   const { addTask, subjects } = useTaskStore()
+  const { addToast } = useToastStore()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<Priority>('medium')
   const [subjectId, setSubjectId] = useState<string>('')
-  const [columnId, setColumnId] = useState<ColumnId>('not-started')
+  const [columnId, setColumnId] = useState<ColumnId>(defaultColumnId ?? 'not-started')
   const [pomodoroEnabled, setPomodoroEnabled] = useState(false)
   const [estimatedPomodoros, setEstimatedPomodoros] = useState(1)
   const [dueDate, setDueDate] = useState<string>(() =>
@@ -32,12 +34,21 @@ export function AddTaskModal() {
   const [showColumnMenu, setShowColumnMenu] = useState(false)
   const [showDateInput, setShowDateInput] = useState(!!defaultDueDate)
 
+  // Sync column and due date whenever the modal opens (useState initializer only runs once)
+  useEffect(() => {
+    if (isOpen) {
+      setColumnId(defaultColumnId ?? 'not-started')
+      setDueDate(defaultDueDate ? format(defaultDueDate, 'yyyy-MM-dd') : '')
+      setShowDateInput(!!defaultDueDate)
+    }
+  }, [isOpen, defaultColumnId, defaultDueDate])
+
   const reset = () => {
     setTitle('')
     setDescription('')
     setPriority('medium')
     setSubjectId('')
-    setColumnId('not-started')
+    setColumnId(useTaskModalStore.getState().defaultColumnId ?? 'not-started')
     setPomodoroEnabled(false)
     setEstimatedPomodoros(1)
     setDueDate('')
@@ -60,6 +71,7 @@ export function AddTaskModal() {
       estimatedPomodoros: pomodoroEnabled ? estimatedPomodoros : undefined,
       dueDate: dueDate ? parseISO(dueDate).getTime() : undefined,
     })
+    addToast('Task added', 'success')
     handleClose()
   }
 

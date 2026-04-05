@@ -6,6 +6,7 @@ import { Task, TaskId, ColumnId, Subject, Priority, Subtask } from '../types/tas
 import { api } from '../lib/api'
 import { useSessionStore } from './sessionStore'
 import { useTimerStore } from './timerStore'
+import { useUIStore } from './uiStore'
 
 interface TaskStore {
   tasks: Record<TaskId, Task>
@@ -19,7 +20,9 @@ interface TaskStore {
     description?: string
     estimatedPomodoros?: number
     dueDate?: number
+    mode?: 'study' | 'personal'
   }) => TaskId
+  getFilteredTaskOrder: (mode: 'study' | 'personal') => Record<ColumnId, TaskId[]>
   updateTask: (id: TaskId, updates: Partial<Task>) => void
   deleteTask: (id: TaskId) => void
   moveTask: (id: TaskId, toColumn: ColumnId, toIndex?: number) => void
@@ -85,13 +88,23 @@ export const useTaskStore = create<TaskStore>()(
         }
       },
 
+      getFilteredTaskOrder: (mode) => {
+        const { tasks, taskOrder } = get()
+        const result: Record<ColumnId, TaskId[]> = { 'not-started': [], 'in-progress': [], completed: [] }
+        for (const colId of Object.keys(taskOrder) as ColumnId[]) {
+          result[colId] = taskOrder[colId].filter((id) => (tasks[id]?.mode ?? 'study') === mode)
+        }
+        return result
+      },
+
       addTask: (title, opts = {}) => {
         const id = nanoid()
-        const { columnId = 'not-started', subjectId, priority = 'medium', description, estimatedPomodoros, dueDate } = opts
+        const currentMode = useUIStore.getState().mode
+        const { columnId = 'not-started', subjectId, priority = 'medium', description, estimatedPomodoros, dueDate, mode = currentMode } = opts
         const task: Task = {
           id, title, description, columnId, priority,
           subjectId, subtasks: [], createdAt: Date.now(),
-          estimatedPomodoros, actualPomodoros: 0, dueDate,
+          estimatedPomodoros, actualPomodoros: 0, dueDate, mode,
         }
         set((s) => ({
           tasks: { ...s.tasks, [id]: task },

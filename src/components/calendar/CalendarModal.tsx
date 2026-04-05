@@ -91,7 +91,7 @@ export function CalendarModal({ open, onClose }: Props) {
                   background: 'var(--color-surface)',
                   opacity: isCurrentMonth(day) ? 1 : 0.4,
                 }}
-                onClick={() => openAddModal(day.getTime())}
+                onClick={() => openAddModal({ defaultDueDate: day.getTime() })}
               >
                 {/* Day number */}
                 <div className="flex justify-end mb-1">

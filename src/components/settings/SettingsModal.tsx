@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { Upload, X, Trash2 } from 'lucide-react'
+import { Upload, X, Trash2, RotateCcw } from 'lucide-react'
+import { useShortcutsStore, SHORTCUT_IDS, SHORTCUT_LABELS, formatCombo, getKeyCombo, ShortcutId } from '../../stores/shortcutsStore'
 import { Modal } from '../ui/Modal'
 import { Slider } from '../ui/Slider'
 import { useSettingsStore, Theme, CSS_VAR_KEYS, CssVarKey, THEME_PRESETS } from '../../stores/settingsStore'
 import { useAuthStore } from '../../stores/authStore'
 import { useTimerStore } from '../../stores/timerStore'
 import { useTaskStore } from '../../stores/taskStore'
+import { useUIStore } from '../../stores/uiStore'
+import { useToastStore } from '../../stores/toastStore'
 import { ProfileModal } from '../auth/ProfileModal'
 import { playAlarm } from '../../lib/alarm'
 import { api } from '../../lib/api'
@@ -16,7 +19,7 @@ interface Props {
   onClose: () => void
 }
 
-type Section = 'account' | 'appearance' | 'timer' | 'alarm' | 'privacy' | 'quotes' | 'subjects'
+type Section = 'account' | 'appearance' | 'timer' | 'alarm' | 'privacy' | 'quotes' | 'subjects' | 'shortcuts' | 'welcome'
 
 const VAR_LABELS: { key: CssVarKey; label: string }[] = [
   { key: '--color-bg', label: 'Background' },
@@ -60,13 +63,18 @@ export function SettingsModal({ open, onClose }: Props) {
   const { theme, setTheme, customThemeVars, setCustomThemeVar, resetCustomTheme,
     timerDurations, setTimerDuration, autoStartBreaks, setAutoStartBreaks,
     longBreakInterval, setLongBreakInterval, notificationsEnabled, setNotificationsEnabled,
-    shareLastTask, setShareLastTask,
+    shareSessionData, setShareSessionData, shareLastTask, setShareLastTask,
     showTimerInTitle, setShowTimerInTitle,
     musicPlayerMode, setMusicPlayerMode,
-    alarmSoundName, alarmDurationSecs, setAlarmSound, setAlarmDuration } = useSettingsStore()
+    alarmSoundName, alarmDurationSecs, setAlarmSound, setAlarmDuration,
+    setModeTheme, showWelcomeOnStart, setShowWelcomeOnStart } = useSettingsStore()
   const { user } = useAuthStore()
   const { reset } = useTimerStore()
   const { subjects, addSubject, deleteSubject } = useTaskStore()
+  const { mode: currentMode, triggerWelcome } = useUIStore()
+  const { addToast } = useToastStore()
+  const { bindings, setBinding, resetToDefaults } = useShortcutsStore()
+  const [listeningFor, setListeningFor] = useState<ShortcutId | null>(null)
 
   // Local hex text state so we can type freely without losing focus
   const [hexInputs, setHexInputs] = useState<Record<string, string>>(() =>
@@ -204,10 +212,28 @@ export function SettingsModal({ open, onClose }: Props) {
     { key: 'appearance', label: 'Appearance' },
     { key: 'timer', label: 'Timer' },
     { key: 'alarm', label: 'Alarm' },
+    { key: 'shortcuts', label: 'Shortcuts' },
     { key: 'privacy', label: 'Privacy' },
     { key: 'quotes', label: 'Quotes' },
     { key: 'subjects', label: 'Subjects' },
+    { key: 'welcome', label: 'Welcome' },
   ]
+
+  // Handle shortcut reassignment listening
+  useEffect(() => {
+    if (!listeningFor) return
+    const handler = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      const combo = getKeyCombo(e)
+      if (!combo) return
+      setBinding(listeningFor, combo)
+      addToast(`Shortcut updated to ${formatCombo(combo)}`, 'success')
+      setListeningFor(null)
+    }
+    window.addEventListener('keydown', handler, { capture: true })
+    return () => window.removeEventListener('keydown', handler, { capture: true })
+  }, [listeningFor, setBinding, addToast])
 
   return (
     <>
@@ -305,6 +331,18 @@ export function SettingsModal({ open, onClose }: Props) {
                     <span style={{ color: theme === 'custom' ? customThemeVars['--color-primary'] : '#888', fontSize: '0.65rem' }}>Custom</span>
                   </button>
                 </div>
+
+                {/* Set as default theme for current mode */}
+                <button
+                  onClick={() => {
+                    setModeTheme(currentMode, theme, theme === 'custom' ? customThemeVars : undefined)
+                    addToast(`Default theme set for ${currentMode === 'study' ? 'Study' : 'Personal'} mode`, 'success')
+                  }}
+                  className="w-full text-xs px-3 py-1.5 rounded-lg font-medium text-left"
+                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
+                >
+                  Set as default for {currentMode === 'study' ? 'Study' : 'Personal'} mode
+                </button>
 
                 {/* Save as preset (only when custom theme active) */}
                 {theme === 'custom' && user && (
@@ -555,22 +593,45 @@ export function SettingsModal({ open, onClose }: Props) {
             )}
 
             {section === 'privacy' && (
-              <div className="space-y-4">
-                <label className="flex items-start gap-3 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={shareLastTask}
-                    onChange={(e) => setShareLastTask(e.target.checked)}
-                    className="mt-0.5"
-                    style={{ accentColor: 'var(--color-primary)' }}
-                  />
-                  <div>
-                    <p className="text-xs font-medium" style={{ color: 'var(--color-text-primary)' }}>Share last completed task on leaderboard</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                      When enabled, others can see your most recently completed task. If disabled, they'll see "hidden by user"
+              <div className="space-y-5">
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  Control what session data is visible to others on the leaderboard. Settings apply per mode.
+                </p>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-medium" style={{ color: 'var(--color-text-primary)' }}>Share session data with others</p>
+                  <select
+                    value={shareSessionData}
+                    onChange={(e) => setShareSessionData(e.target.value as any)}
+                    className="w-full text-xs px-2 py-1.5 rounded-lg outline-none"
+                    style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                  >
+                    <option value="both">Everyone</option>
+                    <option value="only-study">Study mode only</option>
+                    <option value="only-personal">Personal mode only</option>
+                    <option value="none">Nobody</option>
+                  </select>
+                </div>
+
+                <div className={`space-y-2 ${shareSessionData === 'none' ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--color-text-primary)' }}>Share last completed task</p>
+                  <select
+                    value={shareLastTask}
+                    onChange={(e) => setShareLastTask(e.target.value as any)}
+                    className="w-full text-xs px-2 py-1.5 rounded-lg outline-none"
+                    style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                  >
+                    <option value="both">Everyone</option>
+                    <option value="only-study">Study mode only</option>
+                    <option value="only-personal">Personal mode only</option>
+                    <option value="none">Nobody</option>
+                  </select>
+                  {shareSessionData === 'none' && (
+                    <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                      Disabled because session data sharing is off.
                     </p>
-                  </div>
-                </label>
+                  )}
+                </div>
               </div>
             )}
 
@@ -630,6 +691,61 @@ export function SettingsModal({ open, onClose }: Props) {
               </div>
             )}
 
+            {section === 'shortcuts' && (
+              <div className="space-y-4">
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  Click Edit next to any shortcut, then press your desired key combo.
+                </p>
+                <div className="space-y-1">
+                  {SHORTCUT_IDS.map((id) => (
+                    <div
+                      key={id}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                      style={{ background: 'var(--color-surface-2)' }}
+                    >
+                      <span className="flex-1 text-xs" style={{ color: 'var(--color-text-primary)' }}>
+                        {SHORTCUT_LABELS[id]}
+                      </span>
+                      {listeningFor === id ? (
+                        <span
+                          className="text-xs px-2 py-0.5 rounded animate-pulse"
+                          style={{ background: 'var(--color-primary)', color: 'white', minWidth: 90, textAlign: 'center' }}
+                        >
+                          Press combo…
+                        </span>
+                      ) : (
+                        <kbd
+                          className="text-[10px] px-2 py-0.5 rounded font-mono"
+                          style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)', minWidth: 50, textAlign: 'center' }}
+                        >
+                          {formatCombo(bindings[id])}
+                        </kbd>
+                      )}
+                      <button
+                        onClick={() => setListeningFor(listeningFor === id ? null : id)}
+                        className="text-xs px-2 py-0.5 rounded flex-shrink-0"
+                        style={{
+                          background: listeningFor === id ? 'var(--color-danger)' : 'var(--color-surface-3)',
+                          border: '1px solid var(--color-border)',
+                          color: listeningFor === id ? 'white' : 'var(--color-text-secondary)',
+                        }}
+                      >
+                        {listeningFor === id ? 'Cancel' : 'Edit'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => { resetToDefaults(); addToast('Shortcuts reset to defaults', 'info') }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-secondary)' }}
+                >
+                  <RotateCcw size={11} />
+                  Reset all to defaults
+                </button>
+              </div>
+            )}
+
             {section === 'subjects' && (
               <div className="space-y-4">
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Add custom subjects to tag your tasks.</p>
@@ -685,6 +801,45 @@ export function SettingsModal({ open, onClose }: Props) {
                     <p className="text-xs text-center py-4" style={{ color: 'var(--color-text-muted)' }}>No subjects yet.</p>
                   )}
                 </div>
+              </div>
+            )}
+
+            {section === 'welcome' && (
+              <div className="space-y-5">
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                  Control when the welcome screen appears.
+                </p>
+
+                {/* Toggle: always show on start */}
+                <label className="flex items-center justify-between gap-3 cursor-pointer">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
+                      Show on startup
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                      Display the welcome screen each time the app loads
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowWelcomeOnStart(!showWelcomeOnStart)}
+                    className="relative flex-shrink-0 w-9 h-5 rounded-full transition-colors"
+                    style={{ background: showWelcomeOnStart ? 'var(--color-primary)' : 'var(--color-surface-3)' }}
+                  >
+                    <span
+                      className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: showWelcomeOnStart ? 'translateX(16px)' : 'translateX(0)' }}
+                    />
+                  </button>
+                </label>
+
+                {/* Button: show welcome now */}
+                <button
+                  onClick={() => { triggerWelcome(); onClose() }}
+                  className="w-full py-2 rounded-xl text-sm font-medium"
+                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                >
+                  Show welcome screen now
+                </button>
               </div>
             )}
           </div>

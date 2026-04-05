@@ -11,9 +11,10 @@ import { MobileLayout } from './components/layout/MobileLayout'
 import { ResizeHandle } from './components/ui/ResizeHandle'
 import { CommandPalette } from './components/command/CommandPalette'
 import { SessionSummaryModal } from './components/session/SessionSummaryModal'
-import { AuthModal } from './components/auth/AuthModal'
 import { ScoreboardModal } from './components/scoreboard/ScoreboardModal'
 import { AddTaskModal } from './components/board/AddTaskModal'
+import { ToastContainer } from './components/ui/Toast'
+import { WelcomeModal } from './components/welcome/WelcomeModal'
 import { useResize } from './hooks/useResize'
 import { useTimer } from './hooks/useTimer'
 import { useIdleTimer } from './hooks/useIdleTimer'
@@ -24,10 +25,11 @@ import './styles/themes.css'
 import './styles/globals.css'
 
 export default function App() {
-  const { theme, customThemeVars } = useSettingsStore()
+  const { theme, customThemeVars, studyModeTheme, personalModeTheme, setTheme, setCustomThemeVarsAll } = useSettingsStore()
   const { user, hydrateFromToken } = useAuthStore()
   const { syncFromServer } = useTaskStore()
-  const { isHyperFocus } = useUIStore()
+  const { isHyperFocus, mode: appMode, welcomeTrigger } = useUIStore()
+  const [showWelcome, setShowWelcome] = useState(() => useSettingsStore.getState().showWelcomeOnStart)
   const { secondsRemaining, status, mode } = useTimerStore()
   const { isActive } = useSessionStore()
   const { showTimerInTitle } = useSettingsStore()
@@ -98,15 +100,32 @@ export default function App() {
     if (user) syncFromServer()
   }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Apply per-mode default theme when mode changes
+  useEffect(() => {
+    const modeTheme = appMode === 'study' ? studyModeTheme : personalModeTheme
+    if (modeTheme) {
+      setTheme(modeTheme.theme)
+      if (modeTheme.theme === 'custom' && modeTheme.customVars) {
+        setCustomThemeVarsAll(modeTheme.customVars)
+      }
+    }
+  }, [appMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-open welcome modal when triggered from Settings
+  useEffect(() => {
+    if (welcomeTrigger > 0) setShowWelcome(true)
+  }, [welcomeTrigger]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (isMobile) {
     return (
       <>
         <MobileLayout />
         <CommandPalette />
         <SessionSummaryModal />
-        <AuthModal />
         <ScoreboardModal />
         <AddTaskModal />
+        <WelcomeModal open={showWelcome} onClose={() => setShowWelcome(false)} />
+        <ToastContainer />
       </>
     )
   }
@@ -129,9 +148,10 @@ export default function App() {
       </main>
       <CommandPalette />
       <SessionSummaryModal />
-      <AuthModal />
       <ScoreboardModal />
       <AddTaskModal />
+      <WelcomeModal open={showWelcome} onClose={() => setShowWelcome(false)} />
+      <ToastContainer />
     </div>
   )
 }

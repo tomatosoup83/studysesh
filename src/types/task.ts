@@ -21,6 +21,7 @@ export interface Task {
   dueDate?: number
   estimatedPomodoros?: number
   actualPomodoros: number
+  mode?: 'study' | 'personal'
 }
 
 export interface Subject {

@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 import { useAuthStore } from './authStore'
 import { useTaskStore } from './taskStore'
 import { useSettingsStore } from './settingsStore'
+import { useUIStore } from './uiStore'
 
 interface SessionStore {
   startedAt: number | null
@@ -65,7 +66,20 @@ export const useSessionStore = create<SessionStore>()(
           const tasks = useTaskStore.getState().tasks
           const lastTaskId = s.tasksCompletedIds[s.tasksCompletedIds.length - 1]
           const lastTaskName = lastTaskId ? (tasks[lastTaskId]?.title ?? null) : null
-          const shareLastTask = useSettingsStore.getState().shareLastTask ?? true
+          const { shareSessionData, shareLastTask } = useSettingsStore.getState()
+          const { mode } = useUIStore.getState()
+
+          const shouldShareSession =
+            shareSessionData === 'both' ||
+            (shareSessionData === 'only-study' && mode === 'study') ||
+            (shareSessionData === 'only-personal' && mode === 'personal')
+
+          if (!shouldShareSession) return
+
+          const shouldShareLastTask =
+            shareLastTask === 'both' ||
+            (shareLastTask === 'only-study' && mode === 'study') ||
+            (shareLastTask === 'only-personal' && mode === 'personal')
 
           api.postSession({
             userName,
@@ -76,7 +90,7 @@ export const useSessionStore = create<SessionStore>()(
             pomodoros: s.pomodorosCompleted,
             tasksDone: s.tasksCompletedIds.length,
             lastTaskName,
-            shareLastTask,
+            shareLastTask: shouldShareLastTask,
           }).catch(() => {
             // fire-and-forget; don't block UI on network errors
           })

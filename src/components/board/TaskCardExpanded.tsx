@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Trash2, Timer, CalendarDays } from 'lucide-react'
+import { Trash2, Timer, CalendarDays, BookOpen } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { Task } from '../../types/task'
 import { useTaskStore } from '../../stores/taskStore'
@@ -19,10 +19,12 @@ export function TaskCardExpanded({ task, onClose }: TaskCardExpandedProps) {
   const [dueDate, setDueDate] = useState<string>(() =>
     task.dueDate ? format(task.dueDate, 'yyyy-MM-dd') : ''
   )
+  const [subjectId, setSubjectId] = useState(task.subjectId ?? '')
+  const [showSubjectMenu, setShowSubjectMenu] = useState(false)
   const { updateTask, deleteTask, subjects } = useTaskStore()
   const { setActiveTask, activeTaskId } = useTimerStore()
 
-  const subject = subjects.find((s) => s.id === task.subjectId)
+  const currentSubject = subjects.find((s) => s.id === subjectId)
   const isActiveTask = activeTaskId === task.id
 
   const handleClose = () => {
@@ -30,6 +32,7 @@ export function TaskCardExpanded({ task, onClose }: TaskCardExpandedProps) {
       title: title.trim() || task.title,
       description: description.trim() || undefined,
       dueDate: dueDate ? parseISO(dueDate).getTime() : undefined,
+      subjectId: subjectId || undefined,
     })
     onClose()
   }
@@ -55,14 +58,53 @@ export function TaskCardExpanded({ task, onClose }: TaskCardExpandedProps) {
 
         <div className="flex items-center gap-2 flex-wrap">
           <PriorityBadge priority={task.priority} />
-          {subject && (
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: subject.color + '22', color: subject.color }}
+
+          {/* Subject dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowSubjectMenu((v) => !v)}
+              className="flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{
+                background: currentSubject ? currentSubject.color + '22' : 'var(--color-surface-3)',
+                color: currentSubject ? currentSubject.color : 'var(--color-text-muted)',
+              }}
             >
-              {subject.name}
-            </span>
-          )}
+              <BookOpen size={10} />
+              {currentSubject ? currentSubject.name : 'No Subject'}
+            </button>
+            {showSubjectMenu && (
+              <div
+                className="absolute top-full left-0 mt-1 z-10 rounded-lg shadow-lg overflow-hidden min-w-[140px]"
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+              >
+                <button
+                  type="button"
+                  onClick={() => { setSubjectId(''); setShowSubjectMenu(false) }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left"
+                  style={{ color: 'var(--color-text-muted)', background: !subjectId ? 'var(--color-surface-2)' : 'transparent' }}
+                >
+                  None
+                </button>
+                {subjects.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => { setSubjectId(s.id); setShowSubjectMenu(false) }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left"
+                    style={{
+                      color: 'var(--color-text-primary)',
+                      background: subjectId === s.id ? 'var(--color-surface-2)' : 'transparent',
+                    }}
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           {task.estimatedPomodoros && (
             <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
               <Timer size={11} />

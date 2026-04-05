@@ -1,22 +1,24 @@
-import { useState } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Plus } from 'lucide-react'
 import { ColumnId, COLUMNS } from '../../types/task'
 import { useTaskStore } from '../../stores/taskStore'
+import { useUIStore } from '../../stores/uiStore'
+import { useTaskModalStore } from '../../stores/taskModalStore'
 import { TaskCard } from './TaskCard'
-import { AddTaskForm } from './AddTaskForm'
 
 interface KanbanColumnProps {
   columnId: ColumnId
 }
 
 export function KanbanColumn({ columnId }: KanbanColumnProps) {
-  const [showAddForm, setShowAddForm] = useState(false)
   const { tasks, taskOrder } = useTaskStore()
+  const { mode } = useUIStore()
+  const { open: openTaskModal } = useTaskModalStore()
   const { setNodeRef, isOver } = useDroppable({ id: columnId })
 
-  const ids = taskOrder[columnId]
+  const allIds = taskOrder[columnId]
+  const ids = allIds.filter((id) => (tasks[id]?.mode ?? 'study') === mode)
   const columnTasks = ids.map((id) => tasks[id]).filter(Boolean)
   const label = COLUMNS.find((c) => c.id === columnId)?.label ?? columnId
 
@@ -57,7 +59,7 @@ export function KanbanColumn({ columnId }: KanbanColumnProps) {
           </span>
         </div>
         <button
-          onClick={() => setShowAddForm(true)}
+          onClick={() => openTaskModal({ defaultColumnId: columnId })}
           className="p-1 rounded-lg transition-colors hover:opacity-80"
           style={{ color: 'var(--color-text-muted)' }}
           title="Add task"
@@ -74,21 +76,12 @@ export function KanbanColumn({ columnId }: KanbanColumnProps) {
           ))}
         </SortableContext>
 
-        {columnTasks.length === 0 && !showAddForm && (
+        {columnTasks.length === 0 && (
           <div
             className="flex items-center justify-center h-16 rounded-lg text-xs border-2 border-dashed"
             style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-muted)' }}
           >
             Drop tasks here
-          </div>
-        )}
-
-        {showAddForm && (
-          <div
-            className="p-2 rounded-lg"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-          >
-            <AddTaskForm columnId={columnId} onClose={() => setShowAddForm(false)} />
           </div>
         )}
       </div>

@@ -1,0 +1,47 @@
+✨ What's New in StudySesh
+==========================
+
+-- Latest Update --
+
+🎉 Welcome Screen
+You're looking at it! This welcome screen now pops up every time you open the app so you can jump right into a session or add a new task.
+
+⌨️  Reassignable Shortcuts
+Go to Settings → Shortcuts to reassign any keyboard shortcut to a combo that works for you. Click "Edit" next to any shortcut and press your new key combo. Hit Reset to restore defaults anytime.
+
+🔀 Mode Toggle in Header
+The brain/flower pot icon in the top-right toolbar now doubles as a clickable mode switch — toggle between Study and Personal mode without opening the command palette.
+
+🐛 Bug Fix — Add Task Column
+Clicking + in a kanban column now always opens the task form with the correct column pre-selected (the second click no longer shows the wrong column).
+
+
+-- Previous Update --
+
+🌱 Personal Mode
+Switch between Study mode and Personal mode (⌘⇧L). Each mode has its own separate task list. The header icon changes between a brain 🧠 and a flower pot 🪴 to show which mode you're in.
+
+🎨 Per-Mode Default Themes
+In Settings → Appearance, set a default color theme for each mode. When you switch modes, your preferred theme loads automatically.
+
+🔔 Toast Notifications
+Keyboard shortcuts, task actions, and mode switches now show quick toast notifications so you always know what fired.
+
+🏷️  Edit Task Subjects
+Open any task card and you can now change its subject/tag directly from the detail view — no need to delete and recreate the task.
+
+📋 Smarter Task Adding
+The + button on each kanban column opens the full Add Task form with that column already selected, so you never have to change the column manually.
+
+🔒 Granular Privacy Settings
+Settings → Privacy now lets you choose exactly who can see your session data and last completed task: Everyone, Study mode only, Personal mode only, or Nobody.
+
+⌨️  New Shortcuts
+  ⌘↩       Start / pause timer
+  ⌘⇧P      Play / pause music
+  ⌘⇧S      Start / end session
+  ⌘⇧L      Switch study / personal mode
+  ⌘⇧Space  Toggle hyperfocus
+
+🗂️  Shortcuts Reference
+Open the command palette (⌘K) and scroll down to see all shortcuts listed for quick reference.

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type Theme = 'light' | 'dark' | 'paper' | 'ocean' | 'forest' | 'sunset' | 'custom'
+export type ShareMode = 'both' | 'only-study' | 'only-personal' | 'none'
 
 export const CSS_VAR_KEYS = [
   '--color-bg',
@@ -75,6 +76,11 @@ export const THEME_PRESETS: Record<Exclude<Theme, 'custom'>, Record<CssVarKey, s
   },
 }
 
+export interface ModeTheme {
+  theme: Theme
+  customVars?: Record<CssVarKey, string>
+}
+
 interface SettingsStore {
   theme: Theme
   customThemeVars: Record<CssVarKey, string>
@@ -82,24 +88,32 @@ interface SettingsStore {
   notificationsEnabled: boolean
   autoStartBreaks: boolean
   longBreakInterval: number
-  shareLastTask: boolean
+  shareSessionData: ShareMode
+  shareLastTask: ShareMode
   showTimerInTitle: boolean
   musicPlayerMode: 'inline' | 'popup'
   alarmSoundBase64: string | null
   alarmSoundName: string | null
   alarmDurationSecs: number
+  studyModeTheme: ModeTheme | null
+  personalModeTheme: ModeTheme | null
+  showWelcomeOnStart: boolean
   setTheme: (theme: Theme) => void
+  setShowWelcomeOnStart: (v: boolean) => void
   setCustomThemeVar: (key: CssVarKey, value: string) => void
+  setCustomThemeVarsAll: (vars: Record<CssVarKey, string>) => void
   resetCustomTheme: (base: Exclude<Theme, 'custom'>) => void
   setTimerDuration: (mode: 'pomodoro' | 'shortBreak' | 'longBreak', seconds: number) => void
   setNotificationsEnabled: (v: boolean) => void
   setAutoStartBreaks: (v: boolean) => void
   setLongBreakInterval: (v: number) => void
-  setShareLastTask: (v: boolean) => void
+  setShareSessionData: (v: ShareMode) => void
+  setShareLastTask: (v: ShareMode) => void
   setShowTimerInTitle: (v: boolean) => void
   setMusicPlayerMode: (v: 'inline' | 'popup') => void
   setAlarmSound: (base64: string | null, name: string | null) => void
   setAlarmDuration: (secs: number) => void
+  setModeTheme: (mode: 'study' | 'personal', theme: Theme, customVars?: Record<CssVarKey, string>) => void
 }
 
 export const useSettingsStore = create<SettingsStore>()(
@@ -111,15 +125,21 @@ export const useSettingsStore = create<SettingsStore>()(
       notificationsEnabled: true,
       autoStartBreaks: false,
       longBreakInterval: 4,
-      shareLastTask: true,
+      shareSessionData: 'both',
+      shareLastTask: 'both',
       showTimerInTitle: true,
       musicPlayerMode: 'inline',
       alarmSoundBase64: null,
       alarmSoundName: null,
       alarmDurationSecs: 5,
+      studyModeTheme: null,
+      personalModeTheme: null,
+      showWelcomeOnStart: true,
       setTheme: (theme) => set({ theme }),
+      setShowWelcomeOnStart: (v) => set({ showWelcomeOnStart: v }),
       setCustomThemeVar: (key, value) =>
         set((s) => ({ customThemeVars: { ...s.customThemeVars, [key]: value } })),
+      setCustomThemeVarsAll: (vars) => set({ customThemeVars: vars }),
       resetCustomTheme: (base) =>
         set({ customThemeVars: { ...THEME_PRESETS[base] } }),
       setTimerDuration: (mode, seconds) =>
@@ -127,12 +147,35 @@ export const useSettingsStore = create<SettingsStore>()(
       setNotificationsEnabled: (v) => set({ notificationsEnabled: v }),
       setAutoStartBreaks: (v) => set({ autoStartBreaks: v }),
       setLongBreakInterval: (v) => set({ longBreakInterval: v }),
+      setShareSessionData: (v) => set({ shareSessionData: v }),
       setShareLastTask: (v) => set({ shareLastTask: v }),
       setShowTimerInTitle: (v) => set({ showTimerInTitle: v }),
       setMusicPlayerMode: (v) => set({ musicPlayerMode: v }),
       setAlarmSound: (base64, name) => set({ alarmSoundBase64: base64, alarmSoundName: name }),
       setAlarmDuration: (secs) => set({ alarmDurationSecs: secs }),
+      setModeTheme: (mode, theme, customVars) =>
+        set(mode === 'study'
+          ? { studyModeTheme: { theme, customVars } }
+          : { personalModeTheme: { theme, customVars } }
+        ),
     }),
-    { name: 'studysesh-settings' }
+    {
+      name: 'studysesh-settings',
+      version: 1,
+      migrate: (state: any, version) => {
+        if (version === 0) {
+          // Migrate shareLastTask from boolean to ShareMode
+          const oldShare = state.shareLastTask
+          return {
+            ...state,
+            shareLastTask: oldShare === false ? 'none' : 'both',
+            shareSessionData: 'both',
+            studyModeTheme: null,
+            personalModeTheme: null,
+          }
+        }
+        return state
+      },
+    }
   )
 )
