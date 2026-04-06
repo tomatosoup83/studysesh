@@ -9,6 +9,7 @@ export type ShortcutId =
   | 'session-toggle'
   | 'mode-toggle'
   | 'hyperfocus'
+  | 'budget-transaction-add'
 
 export const SHORTCUT_LABELS: Record<ShortcutId, string> = {
   'palette-open': 'Open command palette',
@@ -18,6 +19,7 @@ export const SHORTCUT_LABELS: Record<ShortcutId, string> = {
   'session-toggle': 'Start / end session',
   'mode-toggle': 'Switch study / personal mode',
   'hyperfocus': 'Toggle hyperfocus',
+  'budget-transaction-add': 'Add transaction (Budget)',
 }
 
 export const DEFAULT_BINDINGS: Record<ShortcutId, string> = {
@@ -28,6 +30,7 @@ export const DEFAULT_BINDINGS: Record<ShortcutId, string> = {
   'session-toggle': 'meta+shift+s',
   'mode-toggle': 'meta+shift+l',
   'hyperfocus': 'meta+shift+space',
+  'budget-transaction-add': 'meta+a',
 }
 
 // All shortcut IDs in display order
@@ -39,6 +42,7 @@ export const SHORTCUT_IDS: ShortcutId[] = [
   'session-toggle',
   'mode-toggle',
   'hyperfocus',
+  'budget-transaction-add',
 ]
 
 interface ShortcutsStore {

@@ -15,6 +15,14 @@ import type {
   SubjectItem,
   ColorPresetItem,
   ColorPresetsResponse,
+  BudgetCategoryItem,
+  BudgetTransactionItem,
+  BudgetTransactionsResponse,
+  BudgetSettingsItem,
+  BudgetTermItem,
+  BudgetHolidayItem,
+  BudgetTermsResponse,
+  BudgetLeaderboardResponse,
 } from '../types/api'
 
 function getToken(): string | null {
@@ -188,6 +196,79 @@ export const api = {
     },
     delete(id: number): Promise<void> {
       return request<void>(`/api/quotes/${id}`, { method: 'DELETE' })
+    },
+  },
+
+  budget: {
+    getCategories(): Promise<{ categories: BudgetCategoryItem[] }> {
+      return request('/api/budget/categories')
+    },
+    createCategory(id: string, name: string, color: string): Promise<BudgetCategoryItem> {
+      return request('/api/budget/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, color }),
+      })
+    },
+    deleteCategory(id: string): Promise<void> {
+      return request(`/api/budget/categories/${id}`, { method: 'DELETE' })
+    },
+
+    getTransactions(weekStart: string): Promise<BudgetTransactionsResponse> {
+      return request(`/api/budget/transactions?weekStart=${weekStart}`)
+    },
+    createTransaction(tx: Omit<BudgetTransactionItem, 'createdAt'>): Promise<BudgetTransactionItem> {
+      return request('/api/budget/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tx),
+      })
+    },
+    updateTransaction(id: string, updates: Partial<Omit<BudgetTransactionItem, 'id' | 'createdAt'>>): Promise<BudgetTransactionItem> {
+      return request(`/api/budget/transactions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+    },
+    deleteTransaction(id: string): Promise<void> {
+      return request(`/api/budget/transactions/${id}`, { method: 'DELETE' })
+    },
+
+    getSettings(): Promise<BudgetSettingsItem> {
+      return request('/api/budget/settings')
+    },
+    updateSettings(s: Partial<BudgetSettingsItem>): Promise<BudgetSettingsItem> {
+      return request('/api/budget/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(s),
+      })
+    },
+
+    getTerms(): Promise<BudgetTermsResponse> {
+      return request('/api/budget/terms')
+    },
+    saveTerms(terms: Omit<BudgetTermItem, 'id'>[]): Promise<BudgetTermsResponse> {
+      return request('/api/budget/terms', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ terms }),
+      })
+    },
+    createHoliday(date: string, name: string): Promise<BudgetHolidayItem> {
+      return request('/api/budget/terms/holidays', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, name }),
+      })
+    },
+    deleteHoliday(id: string): Promise<void> {
+      return request(`/api/budget/terms/holidays/${id}`, { method: 'DELETE' })
+    },
+
+    getLeaderboard(weekStart: string): Promise<BudgetLeaderboardResponse> {
+      return request(`/api/budget/leaderboard?weekStart=${weekStart}`)
     },
   },
 }

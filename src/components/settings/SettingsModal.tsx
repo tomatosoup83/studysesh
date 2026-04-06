@@ -1,5 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Upload, X, Trash2, RotateCcw } from 'lucide-react'
+import { useBudgetCategoryStore } from '../../stores/budgetCategoryStore'
+import { useBudgetSettingsStore } from '../../stores/budgetSettingsStore'
+import { computeAcademicWeeks } from '../../budget/lib/academicCalendar'
+import { format } from 'date-fns'
 import { useShortcutsStore, SHORTCUT_IDS, SHORTCUT_LABELS, formatCombo, getKeyCombo, ShortcutId } from '../../stores/shortcutsStore'
 import { Modal } from '../ui/Modal'
 import { Slider } from '../ui/Slider'
@@ -19,7 +23,7 @@ interface Props {
   onClose: () => void
 }
 
-type Section = 'account' | 'appearance' | 'timer' | 'alarm' | 'privacy' | 'quotes' | 'subjects' | 'shortcuts' | 'welcome'
+type Section = 'account' | 'appearance' | 'timer' | 'alarm' | 'privacy' | 'quotes' | 'subjects' | 'shortcuts' | 'welcome' | 'budget-categories' | 'budget-calendar'
 
 const VAR_LABELS: { key: CssVarKey; label: string }[] = [
   { key: '--color-bg', label: 'Background' },
@@ -100,6 +104,21 @@ export function SettingsModal({ open, onClose }: Props) {
   const [newSubjectColor, setNewSubjectColor] = useState('#6366f1')
   const [subjectSaving, setSubjectSaving] = useState(false)
 
+  // Budget stores
+  const { categories: budgetCategories, syncFromServer: syncBudgetCategories, addCategory: addBudgetCategory, deleteCategory: deleteBudgetCategory } = useBudgetCategoryStore()
+  const { weeklyLimit, leaderboardVisible, terms, holidays, setWeeklyLimit, setLeaderboardVisible, saveTerms, addHoliday, deleteHoliday, syncFromServer: syncBudgetSettings } = useBudgetSettingsStore()
+  const [newBudgetCatName, setNewBudgetCatName] = useState('')
+  const [newBudgetCatColor, setNewBudgetCatColor] = useState('#10b981')
+  const [budgetCatSaving, setBudgetCatSaving] = useState(false)
+  // Term editor state: array of 4 term objects
+  const [termEdits, setTermEdits] = useState<{ name: string; startDate: string; endDate: string }[]>(
+    () => Array.from({ length: 4 }, (_, i) => ({ name: `Term ${i + 1}`, startDate: '', endDate: '' }))
+  )
+  const [newHolidayDate, setNewHolidayDate] = useState('')
+  const [newHolidayName, setNewHolidayName] = useState('')
+  const [weeklyLimitInput, setWeeklyLimitInput] = useState('')
+  const [termsSaving, setTermsSaving] = useState(false)
+
   useEffect(() => {
     if (open && section === 'quotes') {
       api.quotes.getAll().then((r) => setQuotes(r.quotes)).catch(() => {})
@@ -111,6 +130,30 @@ export function SettingsModal({ open, onClose }: Props) {
       api.presets.getAll().then((r) => setPresets(r.presets)).catch(() => {})
     }
   }, [open, section])
+
+  useEffect(() => {
+    if (open && (section === 'budget-categories' || section === 'budget-calendar')) {
+      syncBudgetCategories()
+      syncBudgetSettings()
+    }
+  }, [open, section]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync term editor from store whenever terms changes
+  useEffect(() => {
+    if (terms.length > 0) {
+      setTermEdits(
+        Array.from({ length: 4 }, (_, i) => {
+          const t = terms[i]
+          return t ? { name: t.name, startDate: t.startDate, endDate: t.endDate } : { name: `Term ${i + 1}`, startDate: '', endDate: '' }
+        })
+      )
+    }
+  }, [terms])
+
+  // Sync weekly limit input from store
+  useEffect(() => {
+    setWeeklyLimitInput(weeklyLimit > 0 ? String(weeklyLimit) : '')
+  }, [weeklyLimit])
 
   const handleAddQuote = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -217,6 +260,8 @@ export function SettingsModal({ open, onClose }: Props) {
     { key: 'quotes', label: 'Quotes' },
     { key: 'subjects', label: 'Subjects' },
     { key: 'welcome', label: 'Welcome' },
+    { key: 'budget-categories', label: 'Budget Cat.' },
+    { key: 'budget-calendar', label: 'Budget Cal.' },
   ]
 
   // Handle shortcut reassignment listening
@@ -800,6 +845,193 @@ export function SettingsModal({ open, onClose }: Props) {
                   {subjects.length === 0 && (
                     <p className="text-xs text-center py-4" style={{ color: 'var(--color-text-muted)' }}>No subjects yet.</p>
                   )}
+                </div>
+              </div>
+            )}
+
+            {section === 'budget-categories' && (
+              <div className="space-y-4">
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Add custom budget categories to tag your transactions.</p>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    if (!newBudgetCatName.trim()) return
+                    setBudgetCatSaving(true)
+                    try { await addBudgetCategory(newBudgetCatName.trim(), newBudgetCatColor); setNewBudgetCatName(''); setNewBudgetCatColor('#10b981') }
+                    finally { setBudgetCatSaving(false) }
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <input type="color" value={newBudgetCatColor} onChange={(e) => setNewBudgetCatColor(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer border-0 p-0 flex-shrink-0" style={{ background: 'none' }} />
+                  <input type="text" placeholder="Category name..." value={newBudgetCatName} onChange={(e) => setNewBudgetCatName(e.target.value)}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg outline-none"
+                    style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }} />
+                  <button type="submit" disabled={budgetCatSaving || !newBudgetCatName.trim()}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-40"
+                    style={{ background: 'var(--color-primary)', color: 'white' }}>Add</button>
+                </form>
+                <div className="space-y-1 max-h-52 overflow-y-auto">
+                  {budgetCategories.map((c) => (
+                    <div key={c.id} className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs group" style={{ background: 'var(--color-surface-2)' }}>
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: c.color }} />
+                      <span className="flex-1" style={{ color: 'var(--color-text-primary)' }}>{c.name}</span>
+                      {user && (
+                        <button onClick={() => deleteBudgetCategory(c.id)} title="Delete"
+                          className="flex-shrink-0 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ color: 'var(--color-text-muted)' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-danger)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}>
+                          <Trash2 size={11} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {budgetCategories.length === 0 && <p className="text-xs text-center py-4" style={{ color: 'var(--color-text-muted)' }}>No categories yet.</p>}
+                </div>
+              </div>
+            )}
+
+            {section === 'budget-calendar' && (
+              <div className="space-y-5">
+                {/* Weekly limit */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Weekly spending limit (SGD)</p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min="0" step="0.01" placeholder="0.00"
+                      value={weeklyLimitInput}
+                      onChange={(e) => setWeeklyLimitInput(e.target.value)}
+                      onBlur={() => {
+                        const v = parseFloat(weeklyLimitInput)
+                        if (!isNaN(v) && v >= 0) setWeeklyLimit(v)
+                      }}
+                      className="w-32 px-2 py-1.5 rounded-lg text-xs outline-none"
+                      style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                    />
+                    <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>per week</span>
+                  </div>
+                </div>
+
+                {/* Leaderboard visibility */}
+                <label className="flex items-center justify-between gap-3 cursor-pointer">
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Show on budget leaderboard</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>Others can see your spending vs limit</p>
+                  </div>
+                  <button
+                    onClick={() => setLeaderboardVisible(!leaderboardVisible)}
+                    className="relative flex-shrink-0 w-9 h-5 rounded-full transition-colors"
+                    style={{ background: leaderboardVisible ? 'var(--color-primary)' : 'var(--color-surface-3)' }}
+                  >
+                    <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform"
+                      style={{ transform: leaderboardVisible ? 'translateX(16px)' : 'translateX(0)' }} />
+                  </button>
+                </label>
+
+                {/* Term dates */}
+                <div className="space-y-3" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Academic terms</p>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Each term is divided into 10 Mon–Sun weeks. Enter start/end dates and click Save.</p>
+                  {termEdits.map((t, i) => (
+                    <div key={i} className="space-y-1.5 px-3 py-2 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text" placeholder={`Term ${i + 1} name`} value={t.name}
+                          onChange={(e) => setTermEdits((prev) => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                          className="flex-1 text-xs px-2 py-1 rounded outline-none"
+                          style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span style={{ color: 'var(--color-text-muted)', width: 32 }}>From</span>
+                        <input type="date" value={t.startDate}
+                          onChange={(e) => setTermEdits((prev) => prev.map((x, j) => j === i ? { ...x, startDate: e.target.value } : x))}
+                          className="flex-1 text-xs px-2 py-1 rounded outline-none"
+                          style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }} />
+                        <span style={{ color: 'var(--color-text-muted)', width: 16 }}>to</span>
+                        <input type="date" value={t.endDate}
+                          onChange={(e) => setTermEdits((prev) => prev.map((x, j) => j === i ? { ...x, endDate: e.target.value } : x))}
+                          className="flex-1 text-xs px-2 py-1 rounded outline-none"
+                          style={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }} />
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    disabled={termsSaving}
+                    onClick={async () => {
+                      setTermsSaving(true)
+                      const valid = termEdits.filter((t) => t.startDate && t.endDate)
+                      await saveTerms(valid.map((t, i) => ({ name: t.name, startDate: t.startDate, endDate: t.endDate, sortOrder: i })))
+                      setTermsSaving(false)
+                    }}
+                    className="px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-50"
+                    style={{ background: 'var(--color-primary)', color: 'white' }}
+                  >
+                    {termsSaving ? 'Saving…' : 'Save calendar'}
+                  </button>
+                </div>
+
+                {/* Computed weeks preview */}
+                {terms.length > 0 && (() => {
+                  const weeks = computeAcademicWeeks(terms, holidays)
+                  return weeks.length > 0 ? (
+                    <div className="space-y-1.5" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                      <p className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Computed weeks ({weeks.length} total)</p>
+                      <div className="max-h-40 overflow-y-auto space-y-0.5">
+                        {weeks.map((w, i) => (
+                          <div key={i} className="flex items-center justify-between text-xs px-2 py-1 rounded"
+                            style={{ background: i % 2 === 0 ? 'var(--color-surface-2)' : 'transparent' }}>
+                            <span style={{ color: 'var(--color-text-secondary)' }}>{w.label}</span>
+                            <span style={{ color: 'var(--color-text-muted)' }}>
+                              {format(new Date(w.mondayDate + 'T00:00:00Z'), 'dd MMM')} – {format(new Date(w.sundayDate + 'T00:00:00Z'), 'dd MMM yy')}
+                              {w.holidays.length > 0 && <span style={{ color: 'var(--color-warning)' }}> 🎌</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null
+                })()}
+
+                {/* Holidays */}
+                <div className="space-y-2" style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                  <p className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Holidays</p>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault()
+                      if (!newHolidayDate || !newHolidayName.trim()) return
+                      await addHoliday(newHolidayDate, newHolidayName.trim())
+                      setNewHolidayDate(''); setNewHolidayName('')
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <input type="date" value={newHolidayDate} onChange={(e) => setNewHolidayDate(e.target.value)}
+                      className="text-xs px-2 py-1.5 rounded-lg outline-none"
+                      style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }} />
+                    <input type="text" placeholder="Holiday name" value={newHolidayName} onChange={(e) => setNewHolidayName(e.target.value)}
+                      className="flex-1 text-xs px-2 py-1.5 rounded-lg outline-none"
+                      style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }} />
+                    <button type="submit" disabled={!newHolidayDate || !newHolidayName.trim()}
+                      className="px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-40"
+                      style={{ background: 'var(--color-primary)', color: 'white' }}>Add</button>
+                  </form>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {holidays.map((h) => (
+                      <div key={h.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs group" style={{ background: 'var(--color-surface-2)' }}>
+                        <span style={{ color: 'var(--color-text-muted)' }}>{format(new Date(h.date + 'T00:00:00Z'), 'dd MMM yyyy')}</span>
+                        <span className="flex-1" style={{ color: 'var(--color-text-primary)' }}>{h.name}</span>
+                        <button onClick={() => deleteHoliday(h.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                          style={{ color: 'var(--color-text-muted)' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-danger)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted)')}>
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    ))}
+                    {holidays.length === 0 && <p className="text-xs py-2" style={{ color: 'var(--color-text-muted)' }}>No holidays added.</p>}
+                  </div>
                 </div>
               </div>
             )}

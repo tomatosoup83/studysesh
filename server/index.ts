@@ -12,6 +12,11 @@ import authRoute from './routes/auth.js'
 import tasksRoute from './routes/tasks.js'
 import quotesRoute from './routes/quotes.js'
 import presetsRoute from './routes/presets.js'
+import budgetCategoriesRoute from './routes/budget/categories.js'
+import budgetTransactionsRoute from './routes/budget/transactions.js'
+import budgetSettingsRoute from './routes/budget/settings.js'
+import budgetTermsRoute from './routes/budget/terms.js'
+import budgetLeaderboardRoute from './routes/budget/leaderboard.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -25,17 +30,20 @@ app.route('/api/sessions', sessionsRoute)
 app.route('/api/leaderboard', leaderboardRoute)
 app.route('/api/csv', csvRoute)
 app.route('/api/goals', goalsRoute)
+app.route('/api/budget/categories', budgetCategoriesRoute)
+app.route('/api/budget/transactions', budgetTransactionsRoute)
+app.route('/api/budget/settings', budgetSettingsRoute)
+app.route('/api/budget/terms', budgetTermsRoute)
+app.route('/api/budget/leaderboard', budgetLeaderboardRoute)
 
 const distPath = join(__dirname, '../dist')
 if (existsSync(distPath)) {
-  app.use('/*', serveStatic({ 
-    root: './dist',
-    rewriteRequestPath: (path) => path.replace(/^\/study/, '') 
-   }))
-  app.get('*', (c) => {
-    const html = readFileSync(join(distPath, 'index.html'), 'utf-8')
-    return c.html(html)
-  })
+  // Serve static assets (JS, CSS, images) directly from dist/
+  app.use('/*', serveStatic({ root: './dist' }))
+  // SPA fallback — both apps use the same index.html
+  app.get('/study/*', (c) => c.html(readFileSync(join(distPath, 'index.html'), 'utf-8')))
+  app.get('/budget/*', (c) => c.html(readFileSync(join(distPath, 'index.html'), 'utf-8')))
+  app.get('/', (c) => c.redirect('/study'))
 }
 
 const PORT = parseInt(process.env.PORT ?? '3001', 10)

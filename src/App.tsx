@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSettingsStore, CSS_VAR_KEYS } from './stores/settingsStore'
+import { BudgetApp } from './budget/BudgetApp'
 import { useAuthStore } from './stores/authStore'
 import { useTaskStore } from './stores/taskStore'
 import { useTimerStore } from './stores/timerStore'
@@ -25,6 +26,11 @@ import './styles/themes.css'
 import './styles/globals.css'
 
 export default function App() {
+  if (window.location.pathname.startsWith('/budget')) return <BudgetApp />
+  return <StudySeshApp />
+}
+
+function StudySeshApp() {
   const { theme, customThemeVars, studyModeTheme, personalModeTheme, setTheme, setCustomThemeVarsAll } = useSettingsStore()
   const { user, hydrateFromToken } = useAuthStore()
   const { syncFromServer } = useTaskStore()
@@ -60,6 +66,7 @@ export default function App() {
   useIdleTimer()
   useNotifications()
 
+  // Apply theme (extracted to useThemeApplicator but kept inline here for studysesh)
   useEffect(() => {
     const root = document.documentElement
     CSS_VAR_KEYS.forEach((k) => root.style.removeProperty(k))
