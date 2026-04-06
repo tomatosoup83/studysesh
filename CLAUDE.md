@@ -52,8 +52,7 @@ Single-page app with no client-side router. UI state (open modals, active panels
 - **Entry:** `server/index.ts` — Hono app wiring all routes, serves `dist/` in production
 - **Database:** `server/db.ts` — SQLite schema + migrations run on startup; DB file at `data/studysesh.db`
 - **Auth middleware:** `server/middleware/auth.ts` — verifies JWT Bearer token, attaches `userId` to context
-- **Routes:** `server/routes/` — auth, sessions, tasks, leaderboard, goals, csv, quotes, presets
-- **Sessions are auth-optional:** the `sessions` table stores a freeform `user_name` (not a FK to `users`). Anonymous users can post sessions. Auth is only required for tasks, goals, and presets routes.
+- **Routes:** `server/routes/` — auth, sessions, tasks, leaderboard, goals, csv, quotes
 
 ### Key Config
 
@@ -61,10 +60,3 @@ Single-page app with no client-side router. UI state (open modals, active panels
 - Vite proxies `/api/*` → `http://localhost:3001` in dev
 - JWT secret defaults to a hardcoded dev value; override with `JWT_SECRET` env var in production
 - `better-sqlite3` requires C++ build tools (native addon)
-- Zustand stores persist to localStorage under `studysesh-*` keys (e.g. `studysesh-auth`, `studysesh-ui`, `studysesh-settings`)
-
-### Modes and UI Behavior
-
-- **App mode** (`uiStore.mode`): `'study'` or `'personal'` — toggled from the header. Each mode can have its own default theme stored in `settingsStore` (`studyModeTheme` / `personalModeTheme`). Switching modes applies that theme automatically in `App.tsx`.
-- **HyperFocus** (`uiStore.isHyperFocus`): hides the LeftPanel (Kanban) so only the timer fills the screen.
-- **Theming:** `settingsStore` holds `theme` (one of `light | dark | paper | ocean | forest | sunset | custom`) and `customThemeVars` (a `Record<CssVarKey, string>`). `App.tsx` applies themes by setting `data-theme` on `<html>` for named themes, or writing CSS custom properties inline for `'custom'`. The canonical list of CSS variable keys is `CSS_VAR_KEYS` in `src/stores/settingsStore.ts`.

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Play, Pause, Timer, SkipForward, Music, Sun, Moon, BookOpen, Plus, Zap, Brain, Flower2, StopCircle, PlayCircle, Wallet } from 'lucide-react'
+import { Play, Pause, Timer, SkipForward, Music, Sun, Moon, BookOpen, Plus, Zap, Brain, Flower2, StopCircle, PlayCircle } from 'lucide-react'
 import { CommandDefinition, COMMAND_CATEGORIES } from '../lib/commands'
 import { useTimerStore } from '../stores/timerStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -154,14 +154,6 @@ export function useCommandActions(onAddTask?: () => void): CommandDefinition[] {
       category: COMMAND_CATEGORIES.SETTINGS,
       icon: BookOpen,
       action: () => { settings.setTheme('paper'); addToast('Paper theme applied', 'success'); cmd.closePalette() },
-    },
-    {
-      id: 'nav-budget',
-      label: 'Open Budget Tracker',
-      category: COMMAND_CATEGORIES.SETTINGS,
-      icon: Wallet,
-      keywords: ['budget', 'finance', 'money', 'spending', 'transactions'],
-      action: () => { window.location.href = '/budget'; cmd.closePalette() },
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [timer.status, music.lofi.isPlaying, ui.isHyperFocus, ui.mode, session.isActive, bindings])

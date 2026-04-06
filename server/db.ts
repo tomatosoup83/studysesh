@@ -88,55 +88,6 @@ db.exec(`
   );
 `)
 
-// Budget tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS budget_categories (
-    id       TEXT PRIMARY KEY,
-    user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name     TEXT NOT NULL,
-    color    TEXT NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_budget_categories_user ON budget_categories(user_id);
-
-  CREATE TABLE IF NOT EXISTS budget_transactions (
-    id           TEXT    PRIMARY KEY,
-    user_id      TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    date         TEXT    NOT NULL,
-    name         TEXT    NOT NULL,
-    amount       REAL    NOT NULL,
-    category_id  TEXT    REFERENCES budget_categories(id) ON DELETE SET NULL,
-    notes        TEXT,
-    created_at   INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
-  );
-  CREATE INDEX IF NOT EXISTS idx_budget_tx_user      ON budget_transactions(user_id);
-  CREATE INDEX IF NOT EXISTS idx_budget_tx_user_date ON budget_transactions(user_id, date);
-
-  CREATE TABLE IF NOT EXISTS budget_settings (
-    user_id              TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    weekly_limit         REAL    NOT NULL DEFAULT 0,
-    leaderboard_visible  INTEGER NOT NULL DEFAULT 1,
-    updated_at           INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
-  );
-
-  CREATE TABLE IF NOT EXISTS budget_terms (
-    id         TEXT    PRIMARY KEY,
-    user_id    TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name       TEXT    NOT NULL,
-    start_date TEXT    NOT NULL,
-    end_date   TEXT    NOT NULL,
-    sort_order INTEGER NOT NULL DEFAULT 0
-  );
-  CREATE INDEX IF NOT EXISTS idx_budget_terms_user ON budget_terms(user_id);
-
-  CREATE TABLE IF NOT EXISTS budget_holidays (
-    id       TEXT PRIMARY KEY,
-    user_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    date     TEXT NOT NULL,
-    name     TEXT NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_budget_holidays_user ON budget_holidays(user_id);
-`)
-
 // Migrations — use try/catch since ALTER TABLE fails if column already exists
 try { db.prepare('ALTER TABLE sessions ADD COLUMN last_task_name TEXT').run() } catch { /* already exists */ }
 try { db.prepare('ALTER TABLE sessions ADD COLUMN share_last_task INTEGER NOT NULL DEFAULT 1').run() } catch { /* already exists */ }
